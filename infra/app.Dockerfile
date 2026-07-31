@@ -5,7 +5,10 @@ WORKDIR /app
 COPY . .
 # Get dependencies and build for web
 RUN flutter pub get
-RUN flutter build web
+
+# Define the base href and API URL for the deployment
+ARG API_URL=/api
+RUN flutter build web --base-href /app/ --dart-define=API_URL=$API_URL
 
 # Stage 2: Serve the app with NGINX
 FROM nginx:alpine

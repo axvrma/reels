@@ -1,30 +1,29 @@
-# Vibes Dashboard
+# Vibes Admin Dashboard (Angular)
 
-The web-based administration dashboard for the Vibes private media platform. This frontend allows you to manage video content, view analytics, and control access.
+This is the central web dashboard for managing the Vibes platform. Built with Angular 18, it allows platform administrators to upload videos, view platform statistics, and configure platform settings.
 
-## Tech Stack
-- **Angular 18** for the frontend framework
-- **Angular Material** for UI components
-- **TypeScript**
+## Local Development
 
-## Development Server
+To run the Angular application locally in a development environment:
 
-To run the dashboard locally:
-
+1. Install dependencies:
 ```bash
 npm install
+```
+
+2. Start the development server:
+```bash
 npm run start
 ```
-Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+The application will be accessible at `http://localhost:4200/`. The development server is usually configured to proxy local `/api` calls to `http://localhost:3000` via a `proxy.conf.json` file.
 
-## Build for Production
+## Production Deployment (Docker)
 
-Run `npm run build` to build the project. The build artifacts will be stored in the `dist/` directory.
+When deploying via the `infra` docker-compose stack, the application is built using:
+```bash
+npm run build -- --base-href /dashboard/
+```
 
-## Testing
+This ensures that Angular expects to be served from `http://<server-ip>/dashboard/`. The deployment architecture seamlessly routes all API requests back to the Node.js backend through a central NGINX Gateway, avoiding any CORS constraints.
 
-Run `npm run test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Docker
-
-A Dockerfile is provided in the `../infra` directory to package the built Angular app into an Nginx container for production deployment. See `infra/README.md` for more details.
+*(See the `infra` folder for more details on running the entire stack!)*

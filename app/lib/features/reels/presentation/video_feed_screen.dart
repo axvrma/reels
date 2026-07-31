@@ -35,6 +35,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   
   final PageController _pageController = PageController();
   int _currentIndex = 0;
+  bool _autoPlayBackground = false;
   
   late AnimationController _pulseController;
   final Box box = Hive.box('videoData');
@@ -277,6 +278,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           key: ValueKey(_videos[index].id),
           video: _videos[index],
           repository: _repository,
+          autoPlayMode: _autoPlayBackground,
           onNavigateUp: index > 0 
               ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
               : null,
@@ -324,6 +326,18 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                   ),
                   Row(
                     children: [
+                      IconButton(
+                        icon: HugeIcon(
+                          icon: HugeIcons.strokeRoundedHeadphones, 
+                          color: _autoPlayBackground ? const Color(0xFFE040FB) : Colors.white, 
+                          size: 24.0,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _autoPlayBackground = !_autoPlayBackground;
+                          });
+                        },
+                      ),
                       IconButton(
                         icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, color: Colors.white, size: 24.0),
                         onPressed: _loadVideos,
@@ -382,11 +396,13 @@ class VideoPlayerScreen extends StatefulWidget {
   final VideoRepository repository;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateDown;
+  final bool autoPlayMode;
 
   const VideoPlayerScreen({
     super.key,
     required this.video,
     required this.repository,
+    this.autoPlayMode = false,
     this.onNavigateUp,
     this.onNavigateDown,
   });
@@ -407,6 +423,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
   late AnimationController _likeAnimController;
   bool _showPlayPauseIcon = false;
   String? _stateKey;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -525,7 +542,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
 
       if (mounted) {
         setState(() => _isPlaying = true);
-        await _controller!.setLooping(true);
+        await _controller!.setLooping(!widget.autoPlayMode);
         if (_videoState.progressSeconds > 0 && _videoState.progressSeconds < _controller!.duration.inSeconds) {
           await _controller!.seekTo(Duration(seconds: _videoState.progressSeconds.toInt()));
         }
@@ -559,6 +576,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
       if (_isPlaying && _controller!.position.inSeconds % 5 == 0) {
         _videoState = _videoState.copyWith(progressSeconds: _controller!.position.inSeconds.toDouble());
         _saveState();
+      }
+
+      // Auto-advance logic
+      if (widget.autoPlayMode && 
+          !_hasNavigated && 
+          _controller!.duration.inMilliseconds > 0 &&
+          _controller!.position.inMilliseconds >= _controller!.duration.inMilliseconds - 300) {
+        _hasNavigated = true;
+        widget.onNavigateDown?.call();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(VideoPlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.autoPlayMode != widget.autoPlayMode) {
+      _controller?.setLooping(!widget.autoPlayMode);
+      if (!widget.autoPlayMode) {
+        _hasNavigated = false;
       }
     }
   }

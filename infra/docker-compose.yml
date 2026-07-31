@@ -1,12 +1,22 @@
 version: '3.8'
 
 services:
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - server
+      - dashboard
+      - app
+    restart: unless-stopped
+
   server:
     build:
       context: ../server
       dockerfile: ../infra/server.Dockerfile
-    ports:
-      - "127.0.0.1:3000:3000"
     volumes:
       - vibes_data:/app/data
     environment:
@@ -22,8 +32,6 @@ services:
     build:
       context: ../dashboard
       dockerfile: ../infra/dashboard.Dockerfile
-    ports:
-      - "127.0.0.1:80:80"
     depends_on:
       - server
     restart: unless-stopped
@@ -32,8 +40,6 @@ services:
     build:
       context: ../app
       dockerfile: ../infra/app.Dockerfile
-    ports:
-      - "127.0.0.1:8080:80"
     depends_on:
       - server
     restart: unless-stopped

@@ -4,22 +4,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+RUN npm run build -- --base-href /dashboard/
 
 FROM nginx:alpine
 
 COPY --from=builder /app/dist/dashboard/browser /usr/share/nginx/html
+
 # Update nginx configuration to handle Angular routing
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
-    location /api/ { \
-        proxy_pass http://server:3000; \
-        proxy_set_header Host $host; \
-        proxy_set_header X-Real-IP $remote_addr; \
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
-        proxy_set_header X-Forwarded-Proto $scheme; \
-    } \
     location / { \
         root /usr/share/nginx/html; \
         index index.html index.htm; \
