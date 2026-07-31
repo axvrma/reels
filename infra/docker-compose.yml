@@ -28,6 +28,16 @@ services:
       - server
     restart: unless-stopped
 
+  app:
+    build:
+      context: ../app
+      dockerfile: ../infra/app.Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - server
+    restart: unless-stopped
+
 volumes:
   vibes_data:
     driver: local

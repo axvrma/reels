@@ -4,9 +4,11 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/reels/presentation/video_feed_screen.dart';
+import 'package:media_kit/media_kit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('videoData');
   await Hive.openBox('settingsData');

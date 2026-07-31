@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../domain/video_item.dart';
@@ -10,6 +11,7 @@ class VideoCacheManager {
   VideoCacheManager({Dio? dio}) : _dio = dio ?? Dio();
 
   Future<String> _getCacheDirPath() async {
+    if (kIsWeb) throw UnsupportedError('File system access not supported on Web');
     final dir = await getApplicationDocumentsDirectory();
     final cacheDir = Directory(p.join(dir.path, 'videos'));
     if (!await cacheDir.exists()) {
@@ -19,6 +21,7 @@ class VideoCacheManager {
   }
 
   Future<File?> getCachedVideo(String videoId) async {
+    if (kIsWeb) return null;
     final cacheDirPath = await _getCacheDirPath();
     final file = File(p.join(cacheDirPath, '$videoId.mp4'));
     if (await file.exists()) {
@@ -28,6 +31,7 @@ class VideoCacheManager {
   }
 
   Future<File> downloadVideo(VideoItem video, {Function(int, int)? onReceiveProgress}) async {
+    if (kIsWeb) throw UnsupportedError('File downloads are not supported on Web');
     final cacheDirPath = await _getCacheDirPath();
     final file = File(p.join(cacheDirPath, '${video.id}.mp4'));
     final partFile = File(p.join(cacheDirPath, '${video.id}.mp4.part'));
@@ -59,6 +63,7 @@ class VideoCacheManager {
   }
 
   Future<void> deleteCachedVideo(String videoId) async {
+    if (kIsWeb) return;
     final cacheDirPath = await _getCacheDirPath();
     final file = File(p.join(cacheDirPath, '$videoId.mp4'));
     if (await file.exists()) {
@@ -67,6 +72,7 @@ class VideoCacheManager {
   }
 
   Future<void> cleanStalePartFiles() async {
+    if (kIsWeb) return;
     final cacheDirPath = await _getCacheDirPath();
     final dir = Directory(cacheDirPath);
     if (!await dir.exists()) return;

@@ -31,14 +31,17 @@ This directory contains the necessary Dockerfiles and docker-compose configurati
 We want to expose the services privately over Tailscale without using Funnel (which makes it public). Tailscale Serve allows us to route traffic to the local container securely over your tailnet.
 
 1. Install Tailscale on the Raspberry Pi and authenticate.
-2. To serve the API and the Dashboard over Tailscale:
+2. To serve the API, the Dashboard, and the Flutter Web App over Tailscale:
 
 ```bash
 # Serve the NGINX dashboard on HTTPS
 tailscale serve --bg 80
 
+# Serve the Flutter Web App on HTTPS under /app
+tailscale serve --bg --set-path /app http://127.0.0.1:8080/
+
 # Serve the Express API on HTTPS under /api
 tailscale serve --bg --set-path /api http://127.0.0.1:3000/api
 ```
 
-This ensures everything is served securely on your private Tailscale network. Your tailnet URL (e.g., `https://raspberrypi.tailnet-xyz.ts.net`) will serve the Angular app at `/` and the API at `/api`.
+This ensures everything is served securely on your private Tailscale network. Your tailnet URL (e.g., `https://raspberrypi.tailnet-xyz.ts.net`) will serve the Angular app at `/`, the Flutter app at `/app`, and the API at `/api`.

@@ -38,6 +38,7 @@ The easiest way to get the backend and dashboard running is using the provided D
 **Services started:**
 - **Server API**: Available at `http://localhost:3000`
 - **Dashboard**: Available at `http://localhost:80` (or your mapped port)
+- **App (Web)**: Available at `http://localhost:8080` (or your mapped port)
 - *Note: Application data (like sqlite database and media files) is persisted in a local Docker volume (`vibes_data`).*
 
 ---

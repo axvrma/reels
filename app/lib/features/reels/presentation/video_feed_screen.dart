@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hugeicons/hugeicons.dart';
-import 'package:video_player/video_player.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/config/settings_repository.dart';
@@ -15,6 +15,7 @@ import 'settings_screen.dart';
 import 'package:dio/dio.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/login_screen.dart';
+import 'player/adaptive_video_player.dart';
 class VideoFeedScreen extends StatefulWidget {
   const VideoFeedScreen({super.key});
 
@@ -276,6 +277,12 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           key: ValueKey(_videos[index].id),
           video: _videos[index],
           repository: _repository,
+          onNavigateUp: index > 0 
+              ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
+              : null,
+          onNavigateDown: index < _videos.length - 1 
+              ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
+              : null,
         );
       },
     );
@@ -373,11 +380,15 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
 class VideoPlayerScreen extends StatefulWidget {
   final VideoItem video;
   final VideoRepository repository;
+  final VoidCallback? onNavigateUp;
+  final VoidCallback? onNavigateDown;
 
   const VideoPlayerScreen({
     super.key,
     required this.video,
     required this.repository,
+    this.onNavigateUp,
+    this.onNavigateDown,
   });
 
   @override
@@ -385,13 +396,11 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTickerProviderStateMixin {
-  VideoPlayerController? _controller;
+  AdaptiveVideoController? _controller;
   bool _isPlaying = false;
   bool _hasError = false;
   String _errorMessage = '';
-  File? _cachedFile;
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
+  Object? _cachedFile;
   
   late VideoState _videoState;
   final Box box = Hive.box('videoData');
@@ -487,35 +496,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
   Future<void> _initializeVideo() async {
     _cachedFile = await widget.repository.getCachedVideo(widget.video.id);
     
-    if (_cachedFile != null) {
-      _controller = VideoPlayerController.file(_cachedFile!);
-    } else {
-      if (widget.video.streamUrl.scheme == 'file') {
-        _controller = VideoPlayerController.file(File(widget.video.streamUrl.toFilePath()));
-      } else {
-        final token = await AuthRepository().getAccessToken();
-        final headers = <String, String>{};
-        if (token != null) {
-          headers['Authorization'] = 'Bearer $token';
-        }
-        _controller = VideoPlayerController.networkUrl(
-          widget.video.streamUrl,
-          httpHeaders: headers,
-        );
-      }
-    }
-
+    _controller = createAdaptiveVideoController();
     _controller!.addListener(_videoListener);
 
     try {
-      await _controller!.initialize();
+      if (_cachedFile != null) {
+        await _controller!.initialize(widget.video.streamUrl, file: _cachedFile);
+      } else {
+        if (widget.video.streamUrl.scheme == 'file') {
+          // File from dart:io is avoided here for web safety
+          await _controller!.initialize(widget.video.streamUrl, file: null);
+        } else {
+          final token = await AuthRepository().getAccessToken();
+          final headers = <String, String>{};
+          Uri streamUri = widget.video.streamUrl;
+          
+          if (token != null) {
+            headers['Authorization'] = 'Bearer $token';
+            if (kIsWeb) {
+              final queryParams = Map<String, dynamic>.from(streamUri.queryParameters);
+              queryParams['token'] = token;
+              streamUri = streamUri.replace(queryParameters: queryParams);
+            }
+          }
+          await _controller!.initialize(streamUri, headers: headers);
+        }
+      }
+
       if (mounted) {
         setState(() => _isPlaying = true);
-        _controller!.setLooping(true);
-        if (_videoState.progressSeconds > 0 && _videoState.progressSeconds < _controller!.value.duration.inSeconds) {
+        await _controller!.setLooping(true);
+        if (_videoState.progressSeconds > 0 && _videoState.progressSeconds < _controller!.duration.inSeconds) {
           await _controller!.seekTo(Duration(seconds: _videoState.progressSeconds.toInt()));
         }
-        _controller!.play();
+        await _controller!.play();
       }
     } catch (e) {
       if (mounted) {
@@ -529,21 +543,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
 
   void _videoListener() {
     if (mounted && _controller != null) {
-      final isPlaying = _controller!.value.isPlaying;
+      final isPlaying = _controller!.isPlaying;
       if (isPlaying != _isPlaying) {
         setState(() => _isPlaying = isPlaying);
       }
 
-      if (_controller!.value.hasError && !_hasError) {
+      if (_controller!.hasError && !_hasError) {
         setState(() {
           _hasError = true;
-          _errorMessage = _controller!.value.errorDescription ?? 'Playback error';
+          _errorMessage = _controller!.errorDescription ?? 'Playback error';
         });
       }
       
       // Save progress periodically
-      if (_isPlaying && _controller!.value.position.inSeconds % 5 == 0) {
-        _videoState = _videoState.copyWith(progressSeconds: _controller!.value.position.inSeconds.toDouble());
+      if (_isPlaying && _controller!.position.inSeconds % 5 == 0) {
+        _videoState = _videoState.copyWith(progressSeconds: _controller!.position.inSeconds.toDouble());
         _saveState();
       }
     }
@@ -562,7 +576,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     HapticFeedback.lightImpact();
     setState(() {
       _showPlayPauseIcon = true;
-      if (_controller!.value.isPlaying) {
+      if (_controller!.isPlaying) {
         _controller!.pause();
       } else {
         _controller!.play();
@@ -586,53 +600,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     }
   }
 
-  Future<void> _downloadVideo() async {
-    if (_cachedFile != null || _isDownloading) return;
-    
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0;
-    });
-
-    try {
-      final file = await widget.repository.downloadVideo(widget.video, onReceiveProgress: (received, total) {
-        if (total != -1 && mounted) {
-          setState(() {
-            _downloadProgress = received / total;
-          });
-        }
-      });
-      if (mounted) {
-        setState(() {
-          _cachedFile = file;
-          _isDownloading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Downloaded successfully for offline playback')));
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isDownloading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e')));
-      }
-    }
-  }
-  
-  Future<void> _removeDownload() async {
-    await widget.repository.deleteCachedVideo(widget.video.id);
-    setState(() {
-      _cachedFile = null;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
         if (_hasError) _buildErrorWidget()
-        else if (_controller == null || !_controller!.value.isInitialized) _buildLoadingWidget()
+        else if (_controller == null) _buildLoadingWidget()
         else _buildVideoPlayer(),
         
         _buildPlayPauseOverlay(),
@@ -686,9 +660,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
       onTap: _togglePlayPause,
       onDoubleTap: _toggleLike,
       child: Center(
-        child: AspectRatio(
-          aspectRatio: _controller!.value.aspectRatio,
-          child: VideoPlayer(_controller!),
+        child: AdaptiveVideoPlayerWidget(
+          controller: _controller!,
+          fit: BoxFit.cover,
         ),
       ),
     );
@@ -723,17 +697,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
             onPressed: _toggleLike,
           ),
           const SizedBox(height: 16),
-          if (_isDownloading)
-            SizedBox(width: 24, height: 24, child: CircularProgressIndicator(value: _downloadProgress, color: Colors.white, strokeWidth: 2)),
-          if (!_isDownloading && _cachedFile == null)
+          if (widget.onNavigateUp != null)
             IconButton(
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, color: Colors.white, size: 36.0),
-              onPressed: _downloadVideo,
+              icon: const Icon(LucideIcons.arrowUp, color: Colors.white, size: 36.0),
+              onPressed: widget.onNavigateUp,
             ),
-          if (_cachedFile != null)
+          if (widget.onNavigateDown != null)
             IconButton(
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: Colors.green, size: 36.0),
-              onPressed: _removeDownload,
+              icon: const Icon(LucideIcons.arrowDown, color: Colors.white, size: 36.0),
+              onPressed: widget.onNavigateDown,
             ),
         ],
       ),
