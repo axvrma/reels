@@ -51,11 +51,18 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef> Actions </th>
         <td mat-cell *matCellDef="let user">
-          <button mat-stroked-button 
+          <button mat-icon-button 
                   [color]="user.is_active ? 'warn' : 'primary'"
                   (click)="toggleUserStatus(user)"
-                  [disabled]="user.id === currentUser?.id">
-            {{ user.is_active ? 'Revoke Access' : 'Grant Access' }}
+                  [disabled]="user.id === currentUser?.id"
+                  [title]="user.is_active ? 'Revoke Access' : 'Grant Access'">
+            <mat-icon>{{ user.is_active ? 'block' : 'check_circle' }}</mat-icon>
+          </button>
+          <button mat-icon-button color="primary" (click)="overridePassword(user)" title="Override Password">
+            <mat-icon>vpn_key</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="deleteUser(user)" [disabled]="user.id === currentUser?.id" title="Delete User">
+            <mat-icon>delete</mat-icon>
           </button>
         </td>
       </ng-container>

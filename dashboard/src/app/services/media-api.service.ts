@@ -87,4 +87,12 @@ export class MediaApiService {
   updateUserStatus(userId: string, is_active: boolean): Observable<any> {
     return this.http.patch(`${this.apiUrl}/users/${userId}/status`, { is_active: is_active ? 1 : 0 });
   }
+
+  deleteUser(userId: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/users/${userId}`);
+  }
+
+  updateUserPassword(userId: string, password: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/users/${userId}/password`, { password });
+  }
 }

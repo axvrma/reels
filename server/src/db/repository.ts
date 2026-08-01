@@ -278,6 +278,17 @@ export const userRepo = {
     if (is_active === 0) {
       db.prepare("UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE user_id = ? AND revoked_at IS NULL").run(id);
     }
+  },
+
+  delete: (id: string) => {
+    db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM user_video_state WHERE user_id = ?').run(id);
+    return db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  },
+
+  updatePassword: (id: string, password_hash: string) => {
+    db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(password_hash, id);
+    db.prepare("UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE user_id = ? AND revoked_at IS NULL").run(id);
   }
 };
 

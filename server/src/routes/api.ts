@@ -8,6 +8,7 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, authorizeRoles } from '../middleware/auth';
+import * as argon2 from 'argon2';
 
 const router = Router();
 const dataDir = process.env.DATA_DIR || path.join(__dirname, '../../../data');
@@ -463,6 +464,33 @@ router.patch('/users/:id/status', requireAdmin, (req, res, next) => {
 
   try {
     userRepo.updateStatus(req.params.id, is_active);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/users/:id', requireAdmin, (req, res, next) => {
+  if (req.user?.id === req.params.id) {
+    return next(new AppError('FORBIDDEN', 'Cannot delete yourself', 403));
+  }
+  try {
+    userRepo.delete(req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/users/:id/password', requireAdmin, async (req, res, next) => {
+  const { password } = req.body;
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return next(new AppError('INVALID_INPUT', 'Password must be at least 6 characters'));
+  }
+  
+  try {
+    const passwordHash = await argon2.hash(password);
+    userRepo.updatePassword(req.params.id, passwordHash);
     res.status(200).json({ success: true });
   } catch (err) {
     next(err);

@@ -101,18 +101,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         body: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            SwitchListTile(
-              title: const Text('Local Folder Mode', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('Play videos directly from the device', style: TextStyle(color: Colors.grey)),
-              activeColor: const Color(0xFFE040FB),
-              value: _isLocalMode,
-              onChanged: (val) {
-                setState(() {
-                  _isLocalMode = val;
-                });
-              },
-            ),
-            const Divider(color: Colors.grey),
+            if (!kIsWeb) ...[
+              SwitchListTile(
+                title: const Text('Local Folder Mode', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Play videos directly from the device', style: TextStyle(color: Colors.grey)),
+                activeColor: const Color(0xFFE040FB),
+                value: _isLocalMode,
+                onChanged: (val) {
+                  setState(() {
+                    _isLocalMode = val;
+                  });
+                },
+              ),
+              const Divider(color: Colors.grey),
+            ],
             if (_isLocalMode) ...[
               ListTile(
                 title: const Text('Local Folder Path', style: TextStyle(color: Colors.white)),
@@ -145,27 +147,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )
             ],
             const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await _settings.setHasSelectedMode(false);
-                await AuthRepository().logout();
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
-                    (route) => false,
-                  );
-                }
-              },
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeftRight, color: Colors.white, size: 24.0),
-              label: const Text('Change App Mode'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.2),
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            if (!kIsWeb)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await _settings.setHasSelectedMode(false);
+                  await AuthRepository().logout();
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeftRight, color: Colors.white, size: 24.0),
+                label: const Text('Change App Mode'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent.withOpacity(0.2),
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
-            ),
           ],
         ),
       ),

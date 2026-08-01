@@ -63,4 +63,44 @@ export class UsersPage implements OnInit {
       }
     });
   }
+
+  deleteUser(user: any) {
+    if (user.id === this.currentUser?.id) {
+      this.snackBar.open('You cannot delete your own account.', 'Close', { duration: 3000 });
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete ${user.email}? This cannot be undone.`)) {
+      this.api.deleteUser(user.id).subscribe({
+        next: () => {
+          this.users = this.users.filter(u => u.id !== user.id);
+          this.snackBar.open('User deleted successfully.', 'Close', { duration: 3000 });
+        },
+        error: (err) => {
+          this.snackBar.open(err.error?.error?.message || 'Failed to delete user.', 'Close', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  overridePassword(user: any) {
+    const newPassword = window.prompt(`Enter new password for ${user.email} (min 6 characters):`);
+    if (newPassword === null) return; // User cancelled
+    
+    if (newPassword.length < 6) {
+      this.snackBar.open('Password must be at least 6 characters.', 'Close', { duration: 3000 });
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to change the password for ${user.email}?`)) {
+      this.api.updateUserPassword(user.id, newPassword).subscribe({
+        next: () => {
+          this.snackBar.open('Password updated successfully.', 'Close', { duration: 3000 });
+        },
+        error: (err) => {
+          this.snackBar.open(err.error?.error?.message || 'Failed to update password.', 'Close', { duration: 3000 });
+        }
+      });
+    }
+  }
 }
