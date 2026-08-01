@@ -47,7 +47,7 @@
           <li *ngIf="user.role === 'admin'">
             <a routerLink="/dashboard/analytics" routerLinkActive="bg-accent text-accent-foreground" 
                class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-              <ng-icon hlm name="lucideBarChart" class="mr-3 h-4 w-4"></ng-icon>
+              <ng-icon hlm name="lucideChartColumn" class="mr-3 h-4 w-4"></ng-icon>
               Analytics
             </a>
           </li>
@@ -84,7 +84,7 @@
         </button>
         <div class="ml-auto flex items-center space-x-4">
           <button hlmBtn variant="ghost" [hlmDropdownMenuTrigger]="userMenu" class="flex items-center gap-2">
-            <ng-icon hlm name="lucideUserCircle" class="h-5 w-5"></ng-icon>
+            <ng-icon hlm name="lucideCircleUser" class="h-5 w-5"></ng-icon>
             <span class="hidden md:inline">{{ user.email }}</span>
           </button>
         </div>
