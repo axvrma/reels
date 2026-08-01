@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MediaApiService } from '../services/media-api.service';
 import { DatePipe } from '@angular/common';
@@ -33,6 +33,7 @@ import { lucideCheck, lucideCircleX, lucideKey, lucideTrash2 } from '@ng-icons/l
 export class UsersPage implements OnInit {
   private api = inject(MediaApiService);
   private auth = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   users: any[] = [];
   currentUser: any = null;
@@ -45,6 +46,7 @@ export class UsersPage implements OnInit {
   loadUsers() {
     this.api.getUsers().subscribe(users => {
       this.users = users;
+      this.cdr.detectChanges();
     });
   }
 

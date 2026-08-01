@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -64,6 +64,7 @@ export class DashboardPage implements OnInit {
   private api = inject(MediaApiService);
   private auth = inject(AuthService);
   private dialogService = inject(HlmDialogService);
+  private cdr = inject(ChangeDetectorRef);
   
   summary: any;
   videos: Video[] = [];
@@ -80,19 +81,38 @@ export class DashboardPage implements OnInit {
 
   loadData() {
     this.isLoading = true;
-    this.api.getSummary().subscribe(s => this.summary = s);
-    this.api.getTags().subscribe(t => this.availableTags = t);
-    this.api.getCategories(true).subscribe(c => {
-      this.categories = c;
-      this.loadVideos();
+    forkJoin({
+      summary: this.api.getSummary(),
+      tags: this.api.getTags(),
+      categories: this.api.getCategories(true)
+    }).subscribe({
+      next: (res) => {
+        this.summary = res.summary;
+        this.availableTags = res.tags;
+        this.categories = res.categories;
+        this.loadVideos();
+      },
+      error: (err) => {
+        console.error('Error loading initial data', err);
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
   loadVideos() {
-    this.api.getVideos().subscribe(res => {
-      this.videos = res.videos;
-      this.applyFilters();
-      this.isLoading = false;
+    this.api.getVideos().subscribe({
+      next: (res) => {
+        this.videos = res.videos;
+        this.applyFilters();
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading videos', err);
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 

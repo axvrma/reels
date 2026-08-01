@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MediaApiService } from '../services/media-api.service';
@@ -37,6 +37,7 @@ import { lucidePlus, lucideTrash2, lucideX } from '@ng-icons/lucide';
 export class TagsPage implements OnInit {
   private api = inject(MediaApiService);
   private fb = inject(FormBuilder);
+  private cdr = inject(ChangeDetectorRef);
   
   tags: any[] = [];
   
@@ -54,7 +55,10 @@ export class TagsPage implements OnInit {
   }
 
   loadData() {
-    this.api.getTags().subscribe(t => this.tags = t);
+    this.api.getTags().subscribe(t => {
+      this.tags = t;
+      this.cdr.detectChanges();
+    });
   }
 
   createNewTag() {

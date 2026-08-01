@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MediaApiService } from '../services/media-api.service';
@@ -44,6 +44,7 @@ import { lucidePlus, lucideTrash2, lucideFolder, lucideTag, lucideX } from '@ng-
 export class CategoriesPage implements OnInit {
   private api = inject(MediaApiService);
   private fb = inject(FormBuilder);
+  private cdr = inject(ChangeDetectorRef);
   
   categories: any[] = [];
   availableTags: any[] = [];
@@ -69,11 +70,16 @@ export class CategoriesPage implements OnInit {
   loadData() {
     this.api.getCategories(true).subscribe(res => {
       this.categories = res;
+      this.cdr.detectChanges();
     });
-    this.api.getTags().subscribe(t => this.availableTags = t);
+    this.api.getTags().subscribe(t => {
+      this.availableTags = t;
+      this.cdr.detectChanges();
+    });
     // Fetch videos to calculate video counts per category
     this.api.getVideos().subscribe(res => {
       this.allVideos = res.videos || [];
+      this.cdr.detectChanges();
     });
   }
 
