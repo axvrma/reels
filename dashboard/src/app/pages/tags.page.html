@@ -1,91 +1,100 @@
-<div class="page-container">
-  <header class="page-header">
-    <div class="header-text">
-      <h1>Tag Management</h1>
-      <p class="subtitle">Create and manage global tags available for videos and categories</p>
+<div class="flex flex-col space-y-6">
+  <header class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Tag Management</h1>
+      <p class="text-sm text-muted-foreground mt-1">Create and manage global tags available for videos and categories</p>
     </div>
   </header>
 
-  <div class="split-layout" [class.editing]="isEditing || isCreating">
+  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
     <!-- List Side -->
-    <div class="list-side">
-      <mat-card class="list-card">
-        <mat-card-header class="table-header">
-          <mat-card-title>Tags</mat-card-title>
-          <span class="spacer"></span>
-          <button mat-flat-button color="primary" (click)="createNewTag()">
-            <mat-icon>add</mat-icon> Create Tag
+    <div class="md:col-span-1 lg:col-span-1 space-y-4">
+      <section hlmCard class="overflow-hidden shadow-sm">
+        <div hlmCardHeader class="flex flex-row items-center justify-between py-4 border-b">
+          <h3 hlmCardTitle>Tags</h3>
+          <button hlmBtn variant="default" size="sm" (click)="createNewTag()">
+            <ng-icon hlm name="lucidePlus" class="mr-2 h-4 w-4"></ng-icon> Create Tag
           </button>
-        </mat-card-header>
-        <mat-card-content class="no-padding">
-          <mat-nav-list>
-            <ng-container *ngFor="let element of tags">
-              <mat-list-item 
-                [class.selected]="editingId === element.id" 
-                (click)="editTag(element)">
-                <div matListItemTitle class="tag-title">
-                  <span class="tag-chip" [style.background-color]="element.color">
-                    {{element.name}}
-                  </span>
-                </div>
-                <div matListItemLine class="tag-meta text-muted">
-                  Used in videos and categories
-                </div>
-                <button mat-icon-button matListItemMeta (click)="deleteTag($event, element)">
-                  <mat-icon color="warn">delete</mat-icon>
-                </button>
-              </mat-list-item>
-              <mat-divider></mat-divider>
-            </ng-container>
-            <div class="empty-state" *ngIf="tags.length === 0">
-              <mat-icon>label_off</mat-icon>
-              <p>No tags created yet</p>
+        </div>
+        
+        <ng-scrollbar hlm class="h-[calc(100vh-250px)]">
+          <div class="flex flex-col divide-y">
+            <div *ngFor="let element of tags" 
+                 class="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                 [class.bg-accent]="editingId === element.id"
+                 (click)="editTag(element)">
+              
+              <div class="flex flex-col space-y-1">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white shadow"
+                      [style.background-color]="element.color">
+                  {{element.name}}
+                </span>
+                <span class="text-xs text-muted-foreground">Used in videos and categories</span>
+              </div>
+              
+              <button hlmBtn variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0" 
+                      (click)="deleteTag($event, element)">
+                <ng-icon hlm name="lucideTrash2" class="h-4 w-4"></ng-icon>
+              </button>
             </div>
-          </mat-nav-list>
-        </mat-card-content>
-      </mat-card>
+            
+            <div *ngIf="tags.length === 0" class="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+              <div class="rounded-full bg-muted p-3 mb-3">
+                <ng-icon hlm name="lucideTag" class="h-6 w-6"></ng-icon>
+              </div>
+              <p class="text-sm">No tags created yet</p>
+            </div>
+          </div>
+        </ng-scrollbar>
+      </section>
     </div>
 
     <!-- Details Side -->
-    <div class="details-side" *ngIf="isEditing || isCreating">
-      <mat-card class="form-card">
-        <mat-card-header>
-          <mat-card-title>{{ isEditing ? 'Edit Tag' : 'Create Tag' }}</mat-card-title>
-          <span class="spacer"></span>
-          <button mat-icon-button (click)="cancelEdit()">
-            <mat-icon>close</mat-icon>
+    <div class="md:col-span-1 lg:col-span-2" *ngIf="isEditing || isCreating">
+      <section hlmCard class="shadow-sm">
+        <div hlmCardHeader class="flex flex-row items-center justify-between pb-4 border-b">
+          <h3 hlmCardTitle>{{ isEditing ? 'Edit Tag' : 'Create Tag' }}</h3>
+          <button hlmBtn variant="ghost" size="icon" (click)="cancelEdit()">
+            <ng-icon hlm name="lucideX" class="h-4 w-4"></ng-icon>
           </button>
-        </mat-card-header>
+        </div>
         
-        <mat-card-content>
-          <form [formGroup]="tagForm" (ngSubmit)="onSubmit()" class="form-content">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Tag Name</mat-label>
-              <input matInput formControlName="name" required>
-            </mat-form-field>
-
-            <div class="color-picker-row">
-              <label>Tag Color:</label>
-              <input type="color" formControlName="color" class="color-picker">
-              <span class="color-hex">{{ tagForm.get('color')?.value }}</span>
+        <form [formGroup]="tagForm" (ngSubmit)="onSubmit()" class="flex flex-col">
+          <div hlmCardContent class="space-y-6 pt-6">
+            
+            <div class="space-y-2">
+              <label hlmLabel>Tag Name</label>
+              <input hlmInput formControlName="name" class="w-full" />
             </div>
 
-            <div class="preview-section">
-              <label class="text-muted text-sm">Preview:</label>
-              <span class="tag-chip preview-chip" [style.background-color]="tagForm.get('color')?.value">
-                {{ tagForm.get('name')?.value || 'New Tag' }}
-              </span>
+            <div class="space-y-2">
+              <label hlmLabel>Tag Color</label>
+              <div class="flex items-center space-x-4">
+                <input type="color" formControlName="color" class="h-10 w-16 p-1 bg-transparent border-0 rounded-md cursor-pointer" />
+                <span class="text-sm text-muted-foreground uppercase font-mono">{{ tagForm.get('color')?.value }}</span>
+              </div>
             </div>
 
-            <div class="form-actions">
-              <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
-              <button mat-flat-button color="primary" type="submit" [disabled]="tagForm.invalid">
-                {{ isEditing ? 'Save Changes' : 'Create Tag' }}
-              </button>
+            <div class="space-y-2 pt-2 border-t mt-4">
+              <label class="text-sm font-medium text-muted-foreground">Preview:</label>
+              <div class="mt-2">
+                <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold text-white shadow"
+                      [style.background-color]="tagForm.get('color')?.value">
+                  {{ tagForm.get('name')?.value || 'New Tag' }}
+                </span>
+              </div>
             </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
+
+          </div>
+          
+          <div hlmCardFooter class="flex justify-end space-x-2 border-t pt-4">
+            <button hlmBtn variant="ghost" type="button" (click)="cancelEdit()">Cancel</button>
+            <button hlmBtn type="submit" [disabled]="tagForm.invalid">
+              {{ isEditing ? 'Save Changes' : 'Create Tag' }}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   </div>
 </div>

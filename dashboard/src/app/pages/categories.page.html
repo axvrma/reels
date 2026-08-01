@@ -1,128 +1,156 @@
-<div class="page-container">
-  <header class="page-header">
-    <div class="header-text">
-      <h1>Category Management</h1>
-      <p class="subtitle">Organize your media into groups with allowed tags</p>
+<div class="flex flex-col space-y-6">
+  <header class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Category Management</h1>
+      <p class="text-sm text-muted-foreground mt-1">Organize your media into groups with allowed tags</p>
     </div>
-    <div class="header-actions">
-      <button mat-flat-button color="primary" (click)="createNewCategory()">
-        <mat-icon>add</mat-icon> Create Category
+    <div>
+      <button hlmBtn variant="default" (click)="createNewCategory()">
+        <ng-icon hlm name="lucidePlus" class="mr-2 h-4 w-4"></ng-icon> Create Category
       </button>
     </div>
   </header>
 
-  <div class="split-layout" [class.editing]="isEditing || isCreating">
+  <div class="grid gap-6 md:grid-cols-3 lg:grid-cols-4 items-start">
     <!-- List Side -->
-    <div class="list-side">
-      <mat-card class="list-card">
-        <mat-card-content class="no-padding">
-          <mat-nav-list>
-            <ng-container *ngFor="let element of categories">
-              <mat-list-item 
-                [class.selected]="editingId === element.id" 
-                (click)="editCategory(element)">
-                <div matListItemTitle class="category-title">
-                  <span class="color-indicator" [style.background-color]="element.color"></span>
-                  <strong>{{element.name}}</strong>
-                  <span class="status-chip" [class.inactive]="!element.is_active">
-                    {{ element.is_active ? 'Active' : 'Inactive' }}
-                  </span>
+    <div class="md:col-span-1 lg:col-span-1 space-y-4">
+      <section hlmCard class="overflow-hidden shadow-sm">
+        <ng-scrollbar hlm class="h-[calc(100vh-250px)]">
+          <div class="flex flex-col divide-y">
+            <div *ngFor="let element of categories" 
+                 class="flex flex-col p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                 [class.bg-accent]="editingId === element.id"
+                 [class.text-accent-foreground]="editingId === element.id"
+                 (click)="editCategory(element)">
+              
+              <div class="flex items-start justify-between">
+                <div class="flex items-center space-x-2 truncate">
+                  <span class="h-3 w-3 rounded-full shrink-0" [style.background-color]="element.color"></span>
+                  <span class="font-medium truncate">{{element.name}}</span>
+                  <span hlmBadge *ngIf="!element.is_active" variant="secondary" class="text-[10px] px-1 py-0 h-4">Inactive</span>
                 </div>
-                <div matListItemLine class="category-meta">
-                  <mat-icon>movie</mat-icon> {{ getVideoCount(element.id) }} videos &middot;
-                  <mat-icon>label</mat-icon> {{ element.tags?.length || 0 }} allowed tags
-                </div>
-                <button mat-icon-button matListItemMeta (click)="deleteCategory($event, element)" [disabled]="getVideoCount(element.id) > 0">
-                  <mat-icon color="warn">delete</mat-icon>
+                
+                <button hlmBtn variant="ghost" size="icon" class="h-6 w-6 text-destructive hover:bg-destructive/10 -mt-1 shrink-0" 
+                        (click)="deleteCategory($event, element)" [disabled]="getVideoCount(element.id) > 0">
+                  <ng-icon hlm name="lucideTrash2" class="h-4 w-4"></ng-icon>
                 </button>
-              </mat-list-item>
-              <mat-divider></mat-divider>
-            </ng-container>
-          </mat-nav-list>
-        </mat-card-content>
-      </mat-card>
+              </div>
+              
+              <div class="mt-2 flex items-center text-xs text-muted-foreground space-x-2">
+                <span class="flex items-center">
+                  <ng-icon hlm name="lucideFolder" class="mr-1 h-3 w-3"></ng-icon>
+                  {{ getVideoCount(element.id) }} videos
+                </span>
+                <span>&middot;</span>
+                <span class="flex items-center">
+                  <ng-icon hlm name="lucideTag" class="mr-1 h-3 w-3"></ng-icon>
+                  {{ element.tags?.length || 0 }} allowed tags
+                </span>
+              </div>
+              
+            </div>
+            
+            <div *ngIf="categories.length === 0" class="p-6 text-center text-sm text-muted-foreground">
+              No categories found.
+            </div>
+          </div>
+        </ng-scrollbar>
+      </section>
     </div>
 
     <!-- Details Side -->
-    <div class="details-side" *ngIf="isEditing || isCreating">
-      <mat-card class="form-card">
-        <mat-card-header>
-          <mat-card-title>{{ isEditing ? 'Edit Category' : 'Create Category' }}</mat-card-title>
-          <span class="spacer"></span>
-          <button mat-icon-button (click)="cancelEdit()">
-            <mat-icon>close</mat-icon>
+    <div class="md:col-span-2 lg:col-span-3" *ngIf="isEditing || isCreating">
+      <section hlmCard class="shadow-sm">
+        <div hlmCardHeader class="flex flex-row items-center justify-between pb-4 border-b">
+          <h3 hlmCardTitle>{{ isEditing ? 'Edit Category' : 'Create Category' }}</h3>
+          <button hlmBtn variant="ghost" size="icon" (click)="cancelEdit()">
+            <ng-icon hlm name="lucideX" class="h-4 w-4"></ng-icon>
           </button>
-        </mat-card-header>
+        </div>
         
-        <mat-card-content>
-          <form [formGroup]="categoryForm" (ngSubmit)="onSubmit()" class="form-content">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Name</mat-label>
-              <input matInput formControlName="name" (input)="generateSlug()" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Slug (auto-generated)</mat-label>
-              <input matInput formControlName="slug" required>
-            </mat-form-field>
-
-            <div class="color-picker-row">
-              <label>Color Theme:</label>
-              <input type="color" formControlName="color" class="color-picker">
-              <span class="color-hex">{{ categoryForm.get('color')?.value }}</span>
-            </div>
-
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Sort Order</mat-label>
-              <input matInput type="number" formControlName="sort_order">
-            </mat-form-field>
-
-            <div class="toggle-row">
-              <mat-slide-toggle formControlName="is_active">
-                Active status
-              </mat-slide-toggle>
-              <span class="text-muted text-sm">Inactive categories won't appear in upload forms</span>
-            </div>
-
-            <div class="stats-row" *ngIf="isEditing">
-              <div class="stat-item">
-                <mat-icon>movie</mat-icon>
-                <span><strong>{{ getVideoCount(editingId!) }}</strong> associated videos</span>
+        <form [formGroup]="categoryForm" (ngSubmit)="onSubmit()" class="flex flex-col">
+          <div hlmCardContent class="space-y-6 pt-6">
+            
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label hlmLabel>Name</label>
+                <input hlmInput formControlName="name" (input)="generateSlug()" class="w-full" />
+              </div>
+              
+              <div class="space-y-2">
+                <label hlmLabel>Slug (auto-generated)</label>
+                <input hlmInput formControlName="slug" class="w-full" />
               </div>
             </div>
 
-            <!-- Tags Section (Only in Edit Mode) -->
-            <div class="tags-management" *ngIf="isEditing">
-              <h3>Allowed Tags</h3>
-              <p class="text-muted text-sm">Only these tags can be applied to videos in this category.</p>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label hlmLabel>Color Theme</label>
+                <div class="flex items-center space-x-4">
+                  <input type="color" formControlName="color" class="h-10 w-16 p-1 bg-transparent border-0 rounded-md cursor-pointer" />
+                  <span class="text-sm text-muted-foreground uppercase">{{ categoryForm.get('color')?.value }}</span>
+                </div>
+              </div>
               
-              <mat-chip-set>
-                <mat-chip *ngFor="let tag of currentTags" [style.background-color]="tag.color" class="tag-chip" (removed)="removeTagFromCategory(editingId!, tag.id)">
-                  <span class="tag-text">{{tag.name}}</span>
-                  <button matChipRemove><mat-icon>cancel</mat-icon></button>
-                </mat-chip>
-              </mat-chip-set>
-              
-              <mat-form-field appearance="outline" class="full-width tag-select-field mt-3">
-                <mat-label>Add an existing tag</mat-label>
-                <mat-select (selectionChange)="addTagToCategory(editingId!, $event.value)">
-                  <mat-option *ngFor="let tag of availableTags" [value]="tag.id">
-                    <span class="tag-color-dot" [style.background-color]="tag.color"></span>
-                    {{tag.name}}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
+              <div class="space-y-2">
+                <label hlmLabel>Sort Order</label>
+                <input hlmInput type="number" formControlName="sort_order" class="w-full" />
+              </div>
             </div>
 
-            <div class="form-actions">
-              <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
-              <button mat-flat-button color="primary" type="submit" [disabled]="categoryForm.invalid">
-                {{ isEditing ? 'Save Changes' : 'Create Category' }}
-              </button>
+            <div class="flex items-center space-x-4 py-2">
+              <hlm-switch formControlName="is_active"></hlm-switch>
+              <div class="space-y-0.5">
+                <label hlmLabel>Active status</label>
+                <p class="text-xs text-muted-foreground">Inactive categories won't appear in upload forms</p>
+              </div>
             </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
+
+            <div class="bg-muted/50 rounded-lg p-4 flex items-center space-x-2" *ngIf="isEditing">
+              <ng-icon hlm name="lucideFolder" class="h-5 w-5 text-primary"></ng-icon>
+              <span class="text-sm"><strong>{{ getVideoCount(editingId!) }}</strong> associated videos</span>
+            </div>
+
+            <!-- Tags Section (Only in Edit Mode) -->
+            <div class="space-y-4 pt-4 border-t" *ngIf="isEditing">
+              <div>
+                <h4 class="text-base font-semibold">Allowed Tags</h4>
+                <p class="text-sm text-muted-foreground">Only these tags can be applied to videos in this category.</p>
+              </div>
+              
+              <div class="flex flex-wrap gap-2">
+                <div *ngFor="let tag of currentTags" 
+                     class="flex items-center space-x-1 rounded-full px-3 py-1 text-sm text-white"
+                     [style.background-color]="tag.color">
+                  <span>{{tag.name}}</span>
+                  <button type="button" class="ml-1 rounded-full p-0.5 hover:bg-black/20 focus:outline-none" (click)="removeTagFromCategory(tag.id)">
+                    <ng-icon hlm name="lucideX" class="h-3 w-3"></ng-icon>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="space-y-2 pt-2">
+                <label hlmLabel>Add an existing tag</label>
+                <select class="flex h-10 w-full md:w-1/2 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                        (change)="addTagToCategory($event)">
+                  <option value="" disabled selected>Select a tag to add...</option>
+                  <option *ngFor="let tag of availableTags" [value]="tag.id">
+                    {{tag.name}}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+          
+          <div hlmCardFooter class="flex justify-end space-x-2 border-t pt-4">
+            <button hlmBtn variant="ghost" type="button" (click)="cancelEdit()">Cancel</button>
+            <button hlmBtn type="submit" [disabled]="categoryForm.invalid">
+              {{ isEditing ? 'Save Changes' : 'Create Category' }}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   </div>
 </div>

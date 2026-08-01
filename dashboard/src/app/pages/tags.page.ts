@@ -3,15 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MediaApiService } from '../services/media-api.service';
 
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatListModule } from '@angular/material/list';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ConfirmDeleteDialogComponent } from '../shared/components/confirm-delete-dialog.component';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmIconImports } from '@spartan-ng/helm/icon';
+import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { NgScrollbarModule } from 'ngx-scrollbar';
+import { HlmScrollAreaImports } from '@spartan-ng/helm/scroll-area';
+
+import { provideIcons } from '@ng-icons/core';
+import { lucidePlus, lucideTrash2, lucideX } from '@ng-icons/lucide';
 
 @Component({
   selector: 'app-tags-page',
@@ -20,23 +21,22 @@ import { ConfirmDeleteDialogComponent } from '../shared/components/confirm-delet
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatSnackBarModule,
-    MatListModule,
-    MatDialogModule
+    HlmCardImports,
+    HlmButtonImports,
+    HlmIconImports,
+    HlmInputImports,
+    HlmLabelImports,
+    HlmScrollAreaImports,
+    NgScrollbarModule
   ],
-  templateUrl: './tags.page.html',
-  styleUrls: ['./tags.page.scss']
+  providers: [
+    provideIcons({ lucidePlus, lucideTrash2, lucideX })
+  ],
+  templateUrl: './tags.page.html'
 })
 export class TagsPage implements OnInit {
   private api = inject(MediaApiService);
   private fb = inject(FormBuilder);
-  private snackBar = inject(MatSnackBar);
-  private dialog = inject(MatDialog);
   
   tags: any[] = [];
   
@@ -69,7 +69,6 @@ export class TagsPage implements OnInit {
       if (this.isEditing && this.editingId) {
         this.api.updateTag(this.editingId, this.tagForm.value as any).subscribe({
           next: () => {
-            this.snackBar.open('Tag updated successfully', 'Close', { duration: 3000 });
             this.cancelEdit();
             this.loadData();
           },
@@ -78,7 +77,6 @@ export class TagsPage implements OnInit {
       } else if (this.isCreating) {
         this.api.createTag(this.tagForm.value as any).subscribe({
           next: () => {
-            this.snackBar.open('Tag created successfully', 'Close', { duration: 3000 });
             this.cancelEdit();
             this.loadData();
           },
@@ -107,32 +105,21 @@ export class TagsPage implements OnInit {
 
   deleteTag(event: Event, tag: any) {
     event.stopPropagation();
-    const dialogRef = this.dialog.open(ConfirmDeleteDialogComponent, {
-      width: '400px',
-      data: {
-        title: 'Delete Tag',
-        message: `Are you sure you want to delete tag "${tag.name}"?`,
-        warningText: 'This will remove it from all videos and categories.'
-      }
-    });
 
-    dialogRef.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.api.deleteTag(tag.id).subscribe({
-          next: () => {
-            this.snackBar.open('Tag deleted.', 'Close', { duration: 3000 });
-            if (this.editingId === tag.id) {
-              this.cancelEdit();
-            }
-            this.loadData();
-          },
-          error: (err) => this.handleError(err)
-        });
-      }
-    });
+    if (window.confirm(`Are you sure you want to delete tag "${tag.name}"? This will remove it from all videos and categories.`)) {
+      this.api.deleteTag(tag.id).subscribe({
+        next: () => {
+          if (this.editingId === tag.id) {
+            this.cancelEdit();
+          }
+          this.loadData();
+        },
+        error: (err) => this.handleError(err)
+      });
+    }
   }
 
   handleError(err: any) {
-    this.snackBar.open(err.error?.error?.message || 'Operation failed', 'Close', { duration: 5000 });
+    alert(err.error?.error?.message || 'Operation failed');
   }
 }

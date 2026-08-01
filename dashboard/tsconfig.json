@@ -22,7 +22,11 @@
     "lib": [
       "ES2022",
       "dom"
-    ]
+    ],
+    "paths": {
+      "@spartan-ng/helm/*": ["./src/app/components/ui/*/src/index.ts", "./src/app/components/ui/*"],
+      "@sim/*": ["./src/app/components/sim/*/src/index.ts", "./src/app/components/sim/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

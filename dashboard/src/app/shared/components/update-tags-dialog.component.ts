@@ -1,78 +1,65 @@
-import { Component, Inject, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
 
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatFormFieldModule } from '@angular/material/form-field';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 
 @Component({
   selector: 'app-update-tags-dialog',
   standalone: true,
   imports: [
     CommonModule, FormsModule, ReactiveFormsModule,
-    MatButtonModule, MatDialogModule, MatIconModule,
-    MatSelectModule, MatFormFieldModule
+    HlmButtonImports, HlmLabelImports
   ],
   template: `
-    <h2 mat-dialog-title>Update Tags</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="mt-2">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Tags</mat-label>
-          <mat-select formControlName="tags" multiple>
-            <mat-option *ngFor="let tag of data.availableTags" [value]="tag.id">
-              <span class="tag-color-dot" [style.background-color]="tag.color"></span>
+    <div class="flex flex-col gap-4 p-6 w-full max-w-sm mx-auto bg-card text-card-foreground rounded-lg">
+      <h2 class="text-lg font-semibold tracking-tight">Update Tags</h2>
+      <form [formGroup]="form" class="flex flex-col gap-4 pt-2">
+        <div class="space-y-2">
+          <label hlmLabel>Tags</label>
+          <select formControlName="tags" multiple class="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <option *ngFor="let tag of dialogContext.availableTags" [value]="tag.id">
               {{tag.name}}
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
+            </option>
+          </select>
+          <p class="text-xs text-muted-foreground">Hold Ctrl/Cmd to select multiple tags.</p>
+        </div>
       </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="primary" (click)="onSave()">Save</button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .full-width {
-      width: 100%;
-      min-width: 300px;
-    }
-    .mt-2 {
-      margin-top: 8px;
-    }
-    .tag-color-dot {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-  `]
+      <div class="flex justify-end space-x-2 pt-4">
+        <button hlmBtn variant="ghost" (click)="closeDialog()">Cancel</button>
+        <button hlmBtn (click)="onSave()">Save</button>
+      </div>
+    </div>
+  `
 })
 export class UpdateTagsDialogComponent {
   private fb = inject(FormBuilder);
+  private _dialogRef = inject(BrnDialogRef, { optional: true });
+  public dialogContext = injectBrnDialogContext<{ videoId: string; currentTags: any[]; availableTags: any[] }>({ optional: true }) || { videoId: '', currentTags: [], availableTags: [] };
   
   form = this.fb.group({
     tags: [[] as string[]]
   });
 
-  constructor(
-    public dialogRef: MatDialogRef<UpdateTagsDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { videoId: string; currentTags: any[]; availableTags: any[] }
-  ) {
-    if (data.currentTags) {
+  constructor() {
+    if (this.dialogContext.currentTags) {
       this.form.patchValue({
-        tags: data.currentTags.map(t => t.id)
+        tags: this.dialogContext.currentTags.map(t => t.id)
       });
     }
   }
 
+  closeDialog() {
+    if (this._dialogRef) {
+      this._dialogRef.close();
+    }
+  }
+
   onSave() {
-    this.dialogRef.close(this.form.value.tags);
+    if (this._dialogRef) {
+      this._dialogRef.close(this.form.value.tags);
+    }
   }
 }

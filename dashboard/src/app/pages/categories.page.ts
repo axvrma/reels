@@ -3,18 +3,20 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MediaApiService } from '../services/media-api.service';
 
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatListModule } from '@angular/material/list';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ConfirmDeleteDialogComponent } from '../shared/components/confirm-delete-dialog.component';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmIconImports } from '@spartan-ng/helm/icon';
+import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { HlmBadgeImports } from '@spartan-ng/helm/badge';
+import { HlmSwitchImports } from '@spartan-ng/helm/switch';
+import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
+import { NgScrollbarModule } from 'ngx-scrollbar';
+
+import { HlmScrollAreaImports } from '@spartan-ng/helm/scroll-area';
+
+import { provideIcons } from '@ng-icons/core';
+import { lucidePlus, lucideTrash2, lucideFolder, lucideTag, lucideX } from '@ng-icons/lucide';
 
 @Component({
   selector: 'app-categories-page',
@@ -23,26 +25,25 @@ import { ConfirmDeleteDialogComponent } from '../shared/components/confirm-delet
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatSelectModule,
-    MatChipsModule,
-    MatSnackBarModule,
-    MatSlideToggleModule,
-    MatListModule,
-    MatDialogModule
+    HlmCardImports,
+    HlmButtonImports,
+    HlmIconImports,
+    HlmInputImports,
+    HlmLabelImports,
+    HlmBadgeImports,
+    HlmSwitchImports,
+    HlmDropdownMenuImports,
+    HlmScrollAreaImports,
+    NgScrollbarModule
   ],
-  templateUrl: './categories.page.html',
-  styleUrls: ['./categories.page.scss']
+  providers: [
+    provideIcons({ lucidePlus, lucideTrash2, lucideFolder, lucideTag, lucideX })
+  ],
+  templateUrl: './categories.page.html'
 })
 export class CategoriesPage implements OnInit {
   private api = inject(MediaApiService);
   private fb = inject(FormBuilder);
-  private snackBar = inject(MatSnackBar);
-  private dialog = inject(MatDialog);
   
   categories: any[] = [];
   availableTags: any[] = [];
@@ -58,7 +59,7 @@ export class CategoriesPage implements OnInit {
     slug: ['', Validators.required],
     color: ['#3f51b5'],
     sort_order: [0],
-    is_active: [1]
+    is_active: [true]
   });
 
   ngOnInit() {
@@ -94,7 +95,7 @@ export class CategoriesPage implements OnInit {
     this.isEditing = false;
     this.editingId = null;
     this.currentTags = [];
-    this.categoryForm.reset({ color: '#3f51b5', sort_order: 0, is_active: 1 });
+    this.categoryForm.reset({ color: '#3f51b5', sort_order: 0, is_active: true });
   }
 
   editCategory(cat: any) {
@@ -108,7 +109,7 @@ export class CategoriesPage implements OnInit {
       slug: cat.slug,
       color: cat.color,
       sort_order: cat.sort_order,
-      is_active: cat.is_active
+      is_active: !!cat.is_active
     });
   }
 
@@ -122,19 +123,18 @@ export class CategoriesPage implements OnInit {
 
   onSubmit() {
     if (this.categoryForm.valid) {
+      const payload = { ...this.categoryForm.value, is_active: this.categoryForm.value.is_active ? 1 : 0 };
       if (this.isEditing && this.editingId) {
-        this.api.updateCategory(this.editingId, this.categoryForm.value).subscribe({
+        this.api.updateCategory(this.editingId, payload).subscribe({
           next: () => {
-            this.snackBar.open('Category updated successfully.', 'Close', { duration: 3000 });
             this.cancelEdit();
             this.loadData();
           },
           error: (err) => this.handleError(err)
         });
       } else if (this.isCreating) {
-        this.api.createCategory(this.categoryForm.value).subscribe({
+        this.api.createCategory(payload).subscribe({
           next: () => {
-            this.snackBar.open('Category created successfully.', 'Close', { duration: 3000 });
             this.cancelEdit();
             this.loadData();
           },
@@ -149,58 +149,48 @@ export class CategoriesPage implements OnInit {
     const count = this.getVideoCount(cat.id);
     
     if (count > 0) {
-      // Safety measure: Delete button should be disabled, but if triggered, prevent it.
-      this.snackBar.open(`Cannot delete category "${cat.name}" because it has ${count} associated videos. Reassign videos first.`, 'Close', { duration: 5000 });
+      alert(`Cannot delete category "${cat.name}" because it has ${count} associated videos. Reassign videos first.`);
       return;
     }
 
-    const dialogRef = this.dialog.open(ConfirmDeleteDialogComponent, {
-      width: '400px',
-      data: {
-        title: 'Delete Category',
-        message: `Are you sure you want to delete category "${cat.name}"?`,
-        warningText: 'This action cannot be undone.'
-      }
-    });
-
-    dialogRef.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.api.deleteCategory(cat.id).subscribe({
-          next: () => {
-            this.snackBar.open('Category deleted.', 'Close', { duration: 3000 });
-            if (this.editingId === cat.id) {
-              this.cancelEdit();
-            }
-            this.loadData();
-          },
-          error: (err) => this.handleError(err)
-        });
-      }
-    });
+    if (window.confirm(`Are you sure you want to delete category "${cat.name}"? This action cannot be undone.`)) {
+      this.api.deleteCategory(cat.id).subscribe({
+        next: () => {
+          if (this.editingId === cat.id) {
+            this.cancelEdit();
+          }
+          this.loadData();
+        },
+        error: (err) => this.handleError(err)
+      });
+    }
   }
 
-  addTagToCategory(categoryId: string, tagId: string) {
-    if (tagId) {
-      this.api.assignTagToCategory(categoryId, tagId).subscribe(() => {
-        // Refresh local view immediately
+  addTagToCategory(event: Event) {
+    const tagId = (event.target as HTMLSelectElement).value;
+    if (tagId && this.editingId) {
+      this.api.assignTagToCategory(this.editingId, tagId).subscribe(() => {
         this.loadData();
-        // Optimistic UI update for current editing state
         const tag = this.availableTags.find(t => t.id === tagId);
         if (tag && !this.currentTags.some(t => t.id === tagId)) {
           this.currentTags.push(tag);
         }
       });
     }
+    // reset select
+    (event.target as HTMLSelectElement).value = "";
   }
 
-  removeTagFromCategory(categoryId: string, tagId: string) {
-    this.api.removeTagFromCategory(categoryId, tagId).subscribe(() => {
-      this.loadData();
-      this.currentTags = this.currentTags.filter(t => t.id !== tagId);
-    });
+  removeTagFromCategory(tagId: string) {
+    if (this.editingId) {
+      this.api.removeTagFromCategory(this.editingId, tagId).subscribe(() => {
+        this.loadData();
+        this.currentTags = this.currentTags.filter(t => t.id !== tagId);
+      });
+    }
   }
 
   handleError(err: any) {
-    this.snackBar.open(err.error?.error?.message || 'Operation failed', 'Close', { duration: 5000 });
+    alert(err.error?.error?.message || 'Operation failed');
   }
 }

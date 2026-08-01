@@ -1,42 +1,64 @@
-<div class="login-page-wrapper">
-  <div class="login-container">
-    <mat-card class="login-card">
-      <div class="brand-header">
-        <mat-icon class="brand-icon">movie</mat-icon>
-        <h1>Reels Dashboard</h1>
+<div class="flex min-h-screen items-center justify-center bg-muted/20 p-4">
+  <section hlmCard class="w-full min-w-[450px] max-w-[500px] shadow-lg border">
+    <div hlmCardHeader class="flex flex-col items-center space-y-4 pb-6 pt-8">
+      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <ng-icon hlm name="lucideClapperboard" class="h-6 w-6 text-primary"></ng-icon>
+      </div>
+      <div class="text-center">
+        <h3 hlmCardTitle class="text-2xl font-bold tracking-tight">Reels Dashboard</h3>
+        <p hlmCardDescription class="mt-1.5 text-sm text-muted-foreground">Sign in to manage your private media</p>
+      </div>
+    </div>
+    
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="flex flex-col">
+      <div hlmCardContent class="space-y-4 pb-4">
+        
+        <!-- Error Message -->
+        <div *ngIf="errorMessage" class="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium text-center">
+          {{ errorMessage }}
+        </div>
+
+        <fieldset hlmFieldSet>
+          <div hlmFieldGroup class="gap-4">
+            <!-- Email Field -->
+            <div hlmField class="gap-2">
+              <label hlmFieldLabel for="email">Email Address</label>
+              <div class="relative flex items-center">
+                <ng-icon hlm name="lucideMail" class="absolute left-3 h-4 w-4 text-muted-foreground"></ng-icon>
+                <input hlmInput id="email" type="email" formControlName="email" class="pl-9 w-full" placeholder="admin@example.com" />
+              </div>
+              <p *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.hasError('required')" hlmHint class="text-destructive">
+                Email is required
+              </p>
+              <p *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.hasError('email')" hlmHint class="text-destructive">
+                Please enter a valid email address
+              </p>
+            </div>
+
+            <!-- Password Field -->
+            <div hlmField class="gap-2">
+              <label hlmFieldLabel for="password">Password</label>
+              <div class="relative flex items-center">
+                <ng-icon hlm name="lucideLock" class="absolute left-3 h-4 w-4 text-muted-foreground"></ng-icon>
+                <input hlmInput id="password" [type]="hidePassword ? 'password' : 'text'" formControlName="password" class="pl-9 pr-9 w-full" placeholder="••••••••" />
+                <button type="button" class="absolute right-1 p-2 text-muted-foreground hover:text-foreground focus:outline-none" (click)="hidePassword = !hidePassword">
+                  <ng-icon hlm [name]="hidePassword ? 'lucideEyeOff' : 'lucideEye'" class="h-4 w-4"></ng-icon>
+                </button>
+              </div>
+              <p *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.hasError('required')" hlmHint class="text-destructive">
+                Password is required
+              </p>
+            </div>
+          </div>
+        </fieldset>
       </div>
       
-      <mat-card-content>
-        <p class="login-subtitle text-muted">Sign in to manage your private media</p>
-        
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Email Address</mat-label>
-            <input matInput type="email" formControlName="email" required placeholder="admin@example.com">
-            <mat-icon matPrefix>email</mat-icon>
-            <mat-error *ngIf="loginForm.get('email')?.hasError('required')">Email is required</mat-error>
-            <mat-error *ngIf="loginForm.get('email')?.hasError('email')">Please enter a valid email address</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Password</mat-label>
-            <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" required>
-            <mat-icon matPrefix>lock</mat-icon>
-            <button type="button" mat-icon-button matSuffix (click)="hidePassword = !hidePassword" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
-              <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
-            </button>
-            <mat-error *ngIf="loginForm.get('password')?.hasError('required')">Password is required</mat-error>
-          </mat-form-field>
-
-          <button mat-flat-button color="primary" type="submit" [disabled]="loginForm.invalid || isLoading" class="submit-button">
-            <mat-icon *ngIf="!isLoading">login</mat-icon>
-            <span *ngIf="isLoading" class="spinner-container">
-              <mat-icon class="spinning">sync</mat-icon>
-            </span>
-            {{ isLoading ? 'Signing in...' : 'Sign In' }}
-          </button>
-        </form>
-      </mat-card-content>
-    </mat-card>
-  </div>
+      <div hlmCardFooter class="pt-2 pb-6">
+        <button hlmBtn type="submit" class="w-full" [disabled]="loginForm.invalid || isLoading">
+          <hlm-spinner *ngIf="isLoading" class="mr-2 h-4 w-4"></hlm-spinner>
+          {{ isLoading ? 'Signing in...' : 'Sign In' }}
+        </button>
+      </div>
+    </form>
+  </section>
 </div>

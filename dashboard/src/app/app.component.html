@@ -1,84 +1,117 @@
 <ng-container *ngIf="auth.user$ | async as user; else unauthenticated">
-  <mat-sidenav-container class="sidenav-container">
-    <mat-sidenav #drawer class="sidenav" fixedInViewport
-        [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
-        [mode]="(isHandset$ | async) ? 'over' : 'side'"
-        [opened]="(isHandset$ | async) === false">
-      <mat-toolbar class="brand-toolbar">
-        <mat-icon>movie</mat-icon>
-        <div class="brand-text">
-          <span class="title">Reels Library</span>
-          <span class="subtitle">Private Media Server</span>
+  <div class="flex h-screen w-full bg-background overflow-hidden text-foreground">
+    
+    <!-- Sidebar -->
+    <aside 
+      class="fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-card transition-transform duration-300 ease-in-out md:relative md:translate-x-0"
+      [class.-translate-x-full]="!(isSidebarOpen || ((isHandset$ | async) === false))">
+      
+      <div class="flex h-16 items-center border-b px-6">
+        <ng-icon hlm name="lucideClapperboard" class="mr-3 h-6 w-6 text-primary"></ng-icon>
+        <div class="flex flex-col">
+          <span class="text-lg font-bold leading-tight">Reels Library</span>
+          <span class="text-xs text-muted-foreground">Private Media Server</span>
         </div>
-      </mat-toolbar>
-      <mat-nav-list>
-        <a mat-list-item routerLink="/dashboard" routerLinkActive="active-nav-item" [routerLinkActiveOptions]="{exact: true}">
-          <mat-icon matListItemIcon>dashboard</mat-icon>
-          <div matListItemTitle>Videos</div>
-        </a>
-        <a mat-list-item routerLink="/dashboard/categories" routerLinkActive="active-nav-item">
-          <mat-icon matListItemIcon>folder</mat-icon>
-          <div matListItemTitle>Categories</div>
-        </a>
-        <a mat-list-item routerLink="/dashboard/tags" routerLinkActive="active-nav-item">
-          <mat-icon matListItemIcon>label</mat-icon>
-          <div matListItemTitle>Tags</div>
-        </a>
-        <a mat-list-item routerLink="/dashboard/users" routerLinkActive="active-nav-item" *ngIf="user.role === 'admin'">
-          <mat-icon matListItemIcon>people</mat-icon>
-          <div matListItemTitle>Users</div>
-        </a>
-        <a mat-list-item routerLink="/dashboard/analytics" routerLinkActive="active-nav-item" *ngIf="user.role === 'admin'">
-          <mat-icon matListItemIcon>analytics</mat-icon>
-          <div matListItemTitle>Analytics</div>
-        </a>
-        <mat-divider></mat-divider>
-        <div class="user-info-bottom">
-          <div class="user-details">
-            <span class="email">{{ user.email }}</span>
-            <span class="role-chip">{{ user.role }}</span>
-          </div>
-          <button mat-stroked-button color="warn" (click)="logout()" class="logout-btn">
-            <mat-icon>logout</mat-icon> Logout
+      </div>
+
+      <nav class="flex-1 overflow-y-auto py-4">
+        <ul class="space-y-1 px-3">
+          <li>
+            <a routerLink="/dashboard" routerLinkActive="bg-accent text-accent-foreground" [routerLinkActiveOptions]="{exact: true}" 
+               class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ng-icon hlm name="lucideLayoutDashboard" class="mr-3 h-4 w-4"></ng-icon>
+              Videos
+            </a>
+          </li>
+          <li>
+            <a routerLink="/dashboard/categories" routerLinkActive="bg-accent text-accent-foreground" 
+               class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ng-icon hlm name="lucideFolder" class="mr-3 h-4 w-4"></ng-icon>
+              Categories
+            </a>
+          </li>
+          <li>
+            <a routerLink="/dashboard/tags" routerLinkActive="bg-accent text-accent-foreground" 
+               class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ng-icon hlm name="lucideTag" class="mr-3 h-4 w-4"></ng-icon>
+              Tags
+            </a>
+          </li>
+          <li *ngIf="user.role === 'admin'">
+            <a routerLink="/dashboard/users" routerLinkActive="bg-accent text-accent-foreground" 
+               class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ng-icon hlm name="lucideUsers" class="mr-3 h-4 w-4"></ng-icon>
+              Users
+            </a>
+          </li>
+          <li *ngIf="user.role === 'admin'">
+            <a routerLink="/dashboard/analytics" routerLinkActive="bg-accent text-accent-foreground" 
+               class="flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ng-icon hlm name="lucideBarChart" class="mr-3 h-4 w-4"></ng-icon>
+              Analytics
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="border-t p-4">
+        <div class="mb-4 flex flex-col">
+          <span class="text-sm font-medium truncate">{{ user.email }}</span>
+          <span class="text-xs uppercase text-muted-foreground mt-1">{{ user.role }}</span>
+        </div>
+        <button hlmBtn variant="destructive" class="w-full justify-start" (click)="logout()">
+          <ng-icon hlm name="lucideLogOut" class="mr-2 h-4 w-4"></ng-icon> Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div 
+      *ngIf="isSidebarOpen && (isHandset$ | async)" 
+      class="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm transition-all duration-100"
+      (click)="toggleSidebar()">
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 flex-col overflow-hidden">
+      <header class="flex h-16 items-center justify-between border-b bg-card px-6">
+        <button 
+          *ngIf="isHandset$ | async"
+          hlmBtn variant="ghost" size="icon"
+          (click)="toggleSidebar()" 
+          aria-label="Toggle sidenav">
+          <ng-icon hlm name="lucideMenu" class="h-5 w-5"></ng-icon>
+        </button>
+        <div class="ml-auto flex items-center space-x-4">
+          <button hlmBtn variant="ghost" [hlmDropdownMenuTrigger]="userMenu" class="flex items-center gap-2">
+            <ng-icon hlm name="lucideUserCircle" class="h-5 w-5"></ng-icon>
+            <span class="hidden md:inline">{{ user.email }}</span>
           </button>
         </div>
-      </mat-nav-list>
-    </mat-sidenav>
-    <mat-sidenav-content>
-      <mat-toolbar class="top-app-bar">
-        <button
-          type="button"
-          aria-label="Toggle sidenav"
-          mat-icon-button
-          (click)="drawer.toggle()"
-          *ngIf="isHandset$ | async">
-          <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
-        </button>
-        <span class="spacer"></span>
-        <button mat-button [matMenuTriggerFor]="userMenu" class="user-menu-btn">
-          <mat-icon>account_circle</mat-icon>
-          <span class="hidden-on-mobile">{{ user.email }}</span>
-        </button>
-        <mat-menu #userMenu="matMenu">
-          <button mat-menu-item (click)="logout()">
-            <mat-icon>logout</mat-icon>
-            <span>Logout</span>
-          </button>
-          <button mat-menu-item (click)="logoutAll()">
-            <mat-icon>devices_other</mat-icon>
-            <span>Logout All Devices</span>
-          </button>
-        </mat-menu>
-      </mat-toolbar>
-      <main class="main-content">
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6 bg-muted/20">
         <router-outlet></router-outlet>
       </main>
-    </mat-sidenav-content>
-  </mat-sidenav-container>
+    </div>
+  </div>
+
+  <ng-template #userMenu>
+    <hlm-dropdown-menu>
+      <button hlmDropdownMenuItem (click)="logout()">
+        <ng-icon hlm name="lucideLogOut" class="mr-2 h-4 w-4"></ng-icon>
+        <span>Logout</span>
+      </button>
+      <button hlmDropdownMenuItem (click)="logoutAll()">
+        <ng-icon hlm name="lucideMonitorSmartphone" class="mr-2 h-4 w-4"></ng-icon>
+        <span>Logout All Devices</span>
+      </button>
+    </hlm-dropdown-menu>
+  </ng-template>
 </ng-container>
 
 <ng-template #unauthenticated>
-  <main class="unauthenticated-content">
+  <main class="flex min-h-screen items-center justify-center bg-muted/20 p-4">
     <router-outlet></router-outlet>
   </main>
 </ng-template>

@@ -2,12 +2,15 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MediaApiService } from '../services/media-api.service';
 
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTableModule } from '@angular/material/table';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmIconImports } from '@spartan-ng/helm/icon';
+import { HlmTableImports } from '@spartan-ng/helm/table';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmSpinnerImports } from '@spartan-ng/helm/spinner';
 import { MetricCardComponent } from '../shared/components/metric-card.component';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatButtonModule } from '@angular/material/button';
+
+import { provideIcons } from '@ng-icons/core';
+import { lucideActivity, lucideVideo, lucideUsers, lucideHeart, lucideClock, lucideHardDrive, lucideRefreshCw } from '@ng-icons/lucide';
 
 export interface TopVideo {
   id: string;
@@ -33,24 +36,23 @@ export interface Summary {
   standalone: true,
   imports: [
     CommonModule,
-    MatCardModule,
-    MatIconModule,
-    MatTableModule,
-    MetricCardComponent,
-    MatProgressSpinnerModule,
-    MatButtonModule
+    HlmCardImports,
+    HlmIconImports,
+    HlmTableImports,
+    HlmButtonImports,
+    HlmSpinnerImports,
+    MetricCardComponent
   ],
-  templateUrl: './analytics.page.html',
-  styleUrls: ['./analytics.page.scss']
+  providers: [
+    provideIcons({ lucideActivity, lucideVideo, lucideUsers, lucideHeart, lucideClock, lucideHardDrive, lucideRefreshCw })
+  ],
+  templateUrl: './analytics.page.html'
 })
 export class AnalyticsPage implements OnInit {
   private api = inject(MediaApiService);
 
   summary: Summary | null = null;
   isLoading = true;
-
-  displayedColumnsWatched = ['title', 'watchTime'];
-  displayedColumnsLiked = ['title', 'likes'];
 
   ngOnInit() {
     this.loadData();

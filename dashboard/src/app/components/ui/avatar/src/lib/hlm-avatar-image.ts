@@ -1,0 +1,20 @@
+import { Directive, inject } from '@angular/core';
+import { BrnAvatarImage } from '@spartan-ng/brain/avatar';
+import { classes } from '@spartan-ng/helm/utils';
+
+@Directive({
+	standalone: true,
+	selector: 'img[hlmAvatarImage]',
+	exportAs: 'hlmAvatarImage',
+	hostDirectives: [BrnAvatarImage],
+	host: {
+		'data-slot': 'avatar-image',
+	},
+})
+export class HlmAvatarImage {
+	public readonly canShow = inject(BrnAvatarImage).canShow;
+
+	constructor() {
+		classes(() => 'rounded-full aspect-square size-full object-cover');
+	}
+}

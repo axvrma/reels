@@ -2,33 +2,42 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
-import { MatCardModule } from '@angular/material/card';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
+
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmIconImports } from '@spartan-ng/helm/icon';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { HlmSpinnerImports } from '@spartan-ng/helm/spinner';
+import { HlmFieldImports } from '@spartan-ng/helm/field';
+
+import { provideIcons } from '@ng-icons/core';
+import { lucideClapperboard, lucideMail, lucideLock, lucideEye, lucideEyeOff } from '@ng-icons/lucide';
 
 @Component({
   selector: 'app-login-page',
   standalone: true,
   imports: [
     CommonModule, 
-    ReactiveFormsModule, 
-    MatCardModule, 
-    MatInputModule, 
-    MatButtonModule, 
-    MatSnackBarModule,
-    MatIconModule
+    ReactiveFormsModule,
+    HlmCardImports,
+    HlmInputImports,
+    HlmButtonImports,
+    HlmIconImports,
+    HlmLabelImports,
+    HlmSpinnerImports,
+    HlmFieldImports
   ],
-  templateUrl: './login.page.html',
-  styleUrls: ['./login.page.scss']
+  providers: [
+    provideIcons({ lucideClapperboard, lucideMail, lucideLock, lucideEye, lucideEyeOff })
+  ],
+  templateUrl: './login.page.html'
 })
 export class LoginPage {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
-  private snackBar = inject(MatSnackBar);
 
   loginForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -37,8 +46,10 @@ export class LoginPage {
 
   isLoading = false;
   hidePassword = true;
+  errorMessage = '';
 
   onSubmit() {
+    this.errorMessage = '';
     if (this.loginForm.valid) {
       this.isLoading = true;
       this.auth.login(this.loginForm.value).subscribe({
@@ -47,8 +58,7 @@ export class LoginPage {
         },
         error: (err) => {
           this.isLoading = false;
-          const msg = err.error?.error?.message || 'Login failed';
-          this.snackBar.open(msg, 'Close', { duration: 3000 });
+          this.errorMessage = err.error?.error?.message || 'Login failed';
         }
       });
     }

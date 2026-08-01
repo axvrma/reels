@@ -1,24 +1,49 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './services/auth.service';
-import { MatButtonModule } from '@angular/material/button';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { map, shareReplay } from 'rxjs/operators';
 import { Observable } from 'rxjs';
+
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmIconImports } from '@spartan-ng/helm/icon';
+import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
+
+import { provideIcons } from '@ng-icons/core';
+import { 
+  lucideClapperboard, 
+  lucideLayoutDashboard, 
+  lucideFolder, 
+  lucideTag, 
+  lucideUsers, 
+  lucideChartColumn, 
+  lucideLogOut, 
+  lucideMonitorSmartphone, 
+  lucideMenu, 
+  lucideCircleUser 
+} from '@ng-icons/lucide';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
-    RouterOutlet, RouterModule, CommonModule, 
-    MatButtonModule, MatSidenavModule, MatToolbarModule, 
-    MatIconModule, MatListModule, MatMenuModule
+    RouterOutlet, RouterModule, CommonModule,
+    HlmButtonImports, HlmIconImports, HlmDropdownMenuImports, 
+  ],
+  providers: [
+    provideIcons({
+      lucideClapperboard,
+      lucideLayoutDashboard,
+      lucideFolder,
+      lucideTag,
+      lucideUsers,
+      lucideChartColumn,
+      lucideLogOut,
+      lucideMonitorSmartphone,
+      lucideMenu,
+      lucideCircleUser
+    })
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
@@ -34,6 +59,12 @@ export class AppComponent {
     map(result => result.matches),
     shareReplay()
   );
+
+  isSidebarOpen = false;
+
+  toggleSidebar() {
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
 
   logout() {
     this.auth.logout().subscribe();

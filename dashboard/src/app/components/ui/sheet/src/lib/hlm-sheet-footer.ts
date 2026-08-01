@@ -1,0 +1,13 @@
+import { Directive } from '@angular/core';
+import { classes } from '@spartan-ng/helm/utils';
+
+@Directive({
+	standalone: true,
+	selector: '[hlmSheetFooter],hlm-sheet-footer',
+	host: { 'data-slot': 'sheet-footer' },
+})
+export class HlmSheetFooter {
+	constructor() {
+		classes(() => 'gap-2 p-4 mt-auto flex flex-col');
+	}
+}

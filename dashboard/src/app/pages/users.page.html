@@ -1,78 +1,63 @@
-<div class="page-container">
-  <div class="page-header">
-    <h1>Users Management</h1>
-    <p>View all registered users and their status.</p>
+<div class="flex flex-col space-y-6">
+  <div class="flex flex-col">
+    <h1 class="text-3xl font-bold tracking-tight">Users Management</h1>
+    <p class="text-sm text-muted-foreground mt-1">View all registered users and their status.</p>
   </div>
 
-  <mat-card>
-    <table mat-table [dataSource]="users" class="mat-elevation-z0">
-      
-      <!-- Email Column -->
-      <ng-container matColumnDef="email">
-        <th mat-header-cell *matHeaderCellDef> Email </th>
-        <td mat-cell *matCellDef="let user"> {{user.email}} </td>
-      </ng-container>
+  <section hlmCard class="overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table hlmTable class="w-full">
+        <thead hlmTrow>
+          <th hlmTh>Email</th>
+          <th hlmTh>Role</th>
+          <th hlmTh>Status</th>
+          <th hlmTh>Joined</th>
+          <th hlmTh>Last Login</th>
+          <th hlmTh>Actions</th>
+        </thead>
+        <tbody class="[&_tr:last-child]:border-0">
+          <tr hlmTrow *ngFor="let user of users">
+            <td hlmTd class="font-medium">{{user.email}}</td>
+            <td hlmTd>
+              <span hlmBadge [variant]="user.role === 'admin' ? 'default' : 'secondary'">
+                {{user.role}}
+              </span>
+            </td>
+            <td hlmTd>
+              <ng-icon hlm 
+                [name]="user.is_active ? 'lucideCheck' : 'lucideCircleX'" 
+                [class]="user.is_active ? 'text-primary' : 'text-destructive'"
+                class="h-5 w-5">
+              </ng-icon>
+            </td>
+            <td hlmTd>{{user.created_at | date:'mediumDate'}}</td>
+            <td hlmTd>{{user.last_login_at | date:'medium'}}</td>
+            <td hlmTd>
+              <div class="flex space-x-2">
+                <button hlmBtn variant="ghost" size="icon"
+                        (click)="toggleUserStatus(user)"
+                        [disabled]="user.id === currentUser?.id"
+                        [title]="user.is_active ? 'Revoke Access' : 'Grant Access'">
+                  <ng-icon hlm [name]="user.is_active ? 'lucideCircleX' : 'lucideCheck'"
+                            [class]="user.is_active ? 'text-destructive' : 'text-primary'"
+                            class="h-4 w-4">
+                  </ng-icon>
+                </button>
+                <button hlmBtn variant="ghost" size="icon" (click)="overridePassword(user)" title="Override Password">
+                  <ng-icon hlm name="lucideKey" class="h-4 w-4"></ng-icon>
+                </button>
+                <button hlmBtn variant="ghost" size="icon" class="text-destructive hover:text-destructive hover:bg-destructive/10" (click)="deleteUser(user)" [disabled]="user.id === currentUser?.id" title="Delete User">
+                  <ng-icon hlm name="lucideTrash2" class="h-4 w-4"></ng-icon>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <!-- Role Column -->
-      <ng-container matColumnDef="role">
-        <th mat-header-cell *matHeaderCellDef> Role </th>
-        <td mat-cell *matCellDef="let user"> 
-          <mat-chip-set>
-            <mat-chip [color]="user.role === 'admin' ? 'primary' : 'accent'">
-              {{user.role}}
-            </mat-chip>
-          </mat-chip-set>
-        </td>
-      </ng-container>
-
-      <!-- Status Column -->
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef> Status </th>
-        <td mat-cell *matCellDef="let user"> 
-          <mat-icon [color]="user.is_active ? 'primary' : 'warn'">
-            {{ user.is_active ? 'check_circle' : 'cancel' }}
-          </mat-icon>
-        </td>
-      </ng-container>
-
-      <!-- Created At Column -->
-      <ng-container matColumnDef="created_at">
-        <th mat-header-cell *matHeaderCellDef> Joined </th>
-        <td mat-cell *matCellDef="let user"> {{user.created_at | date:'mediumDate'}} </td>
-      </ng-container>
-
-      <!-- Last Login Column -->
-      <ng-container matColumnDef="last_login_at">
-        <th mat-header-cell *matHeaderCellDef> Last Login </th>
-        <td mat-cell *matCellDef="let user"> {{user.last_login_at | date:'medium'}} </td>
-      </ng-container>
-
-      <!-- Actions Column -->
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef> Actions </th>
-        <td mat-cell *matCellDef="let user">
-          <button mat-icon-button 
-                  [color]="user.is_active ? 'warn' : 'primary'"
-                  (click)="toggleUserStatus(user)"
-                  [disabled]="user.id === currentUser?.id"
-                  [title]="user.is_active ? 'Revoke Access' : 'Grant Access'">
-            <mat-icon>{{ user.is_active ? 'block' : 'check_circle' }}</mat-icon>
-          </button>
-          <button mat-icon-button color="primary" (click)="overridePassword(user)" title="Override Password">
-            <mat-icon>vpn_key</mat-icon>
-          </button>
-          <button mat-icon-button color="warn" (click)="deleteUser(user)" [disabled]="user.id === currentUser?.id" title="Delete User">
-            <mat-icon>delete</mat-icon>
-          </button>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-
-    <div *ngIf="users.length === 0" class="empty-state">
+    <div *ngIf="users.length === 0" class="p-8 text-center text-muted-foreground">
       No users found.
     </div>
-  </mat-card>
+  </section>
 </div>
