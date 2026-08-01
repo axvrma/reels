@@ -699,7 +699,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
       child: Center(
         child: AdaptiveVideoPlayerWidget(
           controller: _controller!,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
         ),
       ),
     );

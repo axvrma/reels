@@ -7,9 +7,24 @@ class SettingsRepository {
   static const String keyIsLocalMode = 'isLocalMode';
   static const String keyLocalFolderPath = 'localFolderPath';
 
+  static const String keyHasSelectedMode = 'hasSelectedMode';
+  static const String keyHasSeenWelcome = 'hasSeenWelcome';
+
   final Box _box;
 
   SettingsRepository() : _box = Hive.box(boxName);
+
+  bool get hasSeenWelcome => _box.get(keyHasSeenWelcome, defaultValue: false);
+
+  Future<void> setHasSeenWelcome(bool value) async {
+    await _box.put(keyHasSeenWelcome, value);
+  }
+
+  bool get hasSelectedMode => _box.get(keyHasSelectedMode, defaultValue: false);
+
+  Future<void> setHasSelectedMode(bool value) async {
+    await _box.put(keyHasSelectedMode, value);
+  }
 
   String get serverUrl => _box.get(keyServerUrl, defaultValue: AppConfig.apiUrl);
   

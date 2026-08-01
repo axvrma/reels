@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:vibes/features/reels/presentation/video_feed_screen.dart';
-import '../../reels/presentation/settings_screen.dart';
+import 'mode_selection_screen.dart';
 import '../data/auth_repository.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -71,8 +71,8 @@ class _LoginScreenState extends State<LoginScreen> {
           IconButton(
             icon: const HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Colors.white, size: 24.0),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
               );
             },
           )

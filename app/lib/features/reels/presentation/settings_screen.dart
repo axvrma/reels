@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hugeicons/hugeicons.dart';
 import '../../../core/config/settings_repository.dart';
-
+import '../../auth/data/auth_repository.dart';
+import '../../auth/presentation/mode_selection_screen.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -32,11 +34,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickFolder() async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Local Folder Mode is not supported on Web.'))
+        );
+      }
+      return;
+    }
+
     // Request permissions
     bool hasPermission = false;
-    if (await Permission.manageExternalStorage.request().isGranted) {
-      hasPermission = true;
-    } else if (await Permission.storage.request().isGranted) {
+    if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        hasPermission = true;
+      } else if (await Permission.storage.request().isGranted) {
+        hasPermission = true;
+      }
+    } else {
       hasPermission = true;
     }
 
@@ -129,6 +144,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               )
             ],
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await _settings.setHasSelectedMode(false);
+                await AuthRepository().logout();
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeftRight, color: Colors.white, size: 24.0),
+              label: const Text('Change App Mode'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.2),
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ],
         ),
       ),
