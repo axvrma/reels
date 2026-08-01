@@ -76,10 +76,29 @@
       </div>
     </div>
 
+    <!-- Bulk Action Bar -->
+    <div *ngIf="selectedVideos.size > 0" class="bg-muted/30 border-b px-4 py-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+      <span class="text-sm font-medium">{{selectedVideos.size}} video(s) selected</span>
+      <div class="flex space-x-2">
+        <button hlmBtn variant="outline" size="sm" (click)="bulkUpdateTags()">
+          <ng-icon hlm name="lucideTag" class="mr-2 h-4 w-4"></ng-icon> Update Tags
+        </button>
+        <button hlmBtn variant="destructive" size="sm" (click)="bulkDelete()">
+          <ng-icon hlm name="lucideTrash" class="mr-2 h-4 w-4"></ng-icon> Delete Selected
+        </button>
+      </div>
+    </div>
+
     <!-- Desktop Table -->
     <div class="hidden md:block overflow-x-auto">
       <table hlmTable class="w-full">
         <thead hlmTrow>
+          <th hlmTh class="w-[50px] pl-4">
+            <input type="checkbox" 
+                   [checked]="isAllSelected()" 
+                   (change)="toggleSelectAll($event)"
+                   class="rounded border-input text-primary focus:ring-primary h-4 w-4" />
+          </th>
           <th hlmTh>Thumbnail</th>
           <th hlmTh>Title & Filename</th>
           <th hlmTh>Category</th>
@@ -89,7 +108,13 @@
           <th hlmTh>Actions</th>
         </thead>
         <tbody class="[&_tr:last-child]:border-0">
-          <tr hlmTrow *ngFor="let element of filteredVideos">
+          <tr hlmTrow *ngFor="let element of filteredVideos" [class.bg-muted]="selectedVideos.has(element.id)">
+            <td hlmTd class="pl-4">
+              <input type="checkbox" 
+                     [checked]="selectedVideos.has(element.id)" 
+                     (change)="toggleVideoSelection(element.id)"
+                     class="rounded border-input text-primary focus:ring-primary h-4 w-4" />
+            </td>
             <td hlmTd>
               <div class="relative w-24 h-16 rounded overflow-hidden cursor-pointer group bg-black" (click)="playVideo(element)">
                 <img [src]="getThumbnailUrl(element.thumbnailUrl)" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -147,7 +172,13 @@
     </div>
     
     <div class="md:hidden divide-y mt-2">
-      <div *ngFor="let element of filteredVideos" class="flex p-4 gap-4">
+      <div *ngFor="let element of filteredVideos" class="flex p-4 gap-4" [class.bg-muted]="selectedVideos.has(element.id)">
+        <div class="flex items-center">
+          <input type="checkbox" 
+                 [checked]="selectedVideos.has(element.id)" 
+                 (change)="toggleVideoSelection(element.id)"
+                 class="rounded border-input text-primary focus:ring-primary h-5 w-5" />
+        </div>
         <div class="relative w-24 h-16 shrink-0 rounded overflow-hidden bg-black" (click)="playVideo(element)">
           <img [src]="getThumbnailUrl(element.thumbnailUrl)" class="w-full h-full object-cover opacity-80" />
         </div>

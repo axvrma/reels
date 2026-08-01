@@ -75,6 +75,7 @@ export class DashboardPage implements OnInit {
   
   searchQuery = '';
   selectedCategoryFilter = 'all';
+  selectedVideos: Set<string> = new Set();
 
   ngOnInit() {
     this.loadData();
@@ -150,6 +151,30 @@ export class DashboardPage implements OnInit {
     const value = (event.target as HTMLInputElement).value;
     this.searchQuery = value;
     this.applyFilters();
+  }
+
+  toggleSelectAll(event: any) {
+    if (event.target.checked) {
+      this.selectedVideos = new Set(this.filteredVideos.map(v => v.id));
+    } else {
+      this.selectedVideos = new Set();
+    }
+    this.cdr.detectChanges();
+  }
+
+  toggleVideoSelection(videoId: string) {
+    const newSet = new Set(this.selectedVideos);
+    if (newSet.has(videoId)) {
+      newSet.delete(videoId);
+    } else {
+      newSet.add(videoId);
+    }
+    this.selectedVideos = newSet;
+    this.cdr.detectChanges();
+  }
+
+  isAllSelected(): boolean {
+    return this.filteredVideos.length > 0 && this.selectedVideos.size === this.filteredVideos.length;
   }
 
   getTopTags(video: Video): any[] {
@@ -242,6 +267,82 @@ export class DashboardPage implements OnInit {
             this.loadVideos();
           }
         });
+      }
+    });
+  }
+
+  bulkDelete() {
+    if (this.selectedVideos.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${this.selectedVideos.size} video(s)?`)) {
+      const requests = Array.from(this.selectedVideos).map(id => this.api.deleteVideo(id));
+      forkJoin(requests).subscribe({
+        next: () => {
+          this.selectedVideos = new Set();
+          this.loadData();
+        },
+        error: () => {
+          alert('Delete failed.');
+          this.loadData();
+        }
+      });
+    }
+  }
+
+  bulkUpdateTags() {
+    if (this.selectedVideos.size === 0) return;
+    
+    const videosToUpdate = this.videos.filter(v => this.selectedVideos.has(v.id));
+    
+    const unionTagIds = new Set<string>();
+    videosToUpdate.forEach(v => {
+      (v.tags || []).forEach((t: any) => unionTagIds.add(t.id));
+    });
+    
+    const currentTags = this.availableTags.filter(t => unionTagIds.has(t.id));
+
+    const dialogRef = this.dialogService.open(UpdateTagsDialogComponent, {
+      context: {
+        videoId: 'bulk',
+        currentTags: currentTags,
+        availableTags: this.availableTags
+      },
+      contentClass: 'sm:max-w-sm'
+    });
+
+    dialogRef.closed$.subscribe(selectedTags => {
+      if (!selectedTags) return; // User cancelled
+      
+      const newTagIds = selectedTags as string[];
+      const requests: Observable<any>[] = [];
+      
+      videosToUpdate.forEach(video => {
+        const videoTagIds = (video.tags || []).map(t => t.id);
+        
+        const tagsToAdd = newTagIds.filter(id => !videoTagIds.includes(id));
+        const tagsToRemove = Array.from(unionTagIds).filter(id => !newTagIds.includes(id) && videoTagIds.includes(id));
+        
+        tagsToAdd.forEach(id => {
+          requests.push(this.api.attachTag(video.id, id));
+        });
+        
+        tagsToRemove.forEach(id => {
+          requests.push(this.api.detachTag(video.id, id));
+        });
+      });
+      
+      if (requests.length > 0) {
+        forkJoin(requests).subscribe({
+          next: () => {
+            this.selectedVideos = new Set();
+            this.loadVideos();
+          },
+          error: () => {
+            alert('Failed to update tags.');
+            this.loadVideos();
+          }
+        });
+      } else {
+        this.selectedVideos = new Set();
       }
     });
   }
