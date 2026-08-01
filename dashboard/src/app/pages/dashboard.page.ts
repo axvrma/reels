@@ -24,13 +24,13 @@ import { UpdateTagsDialogComponent } from '../shared/components/update-tags-dial
 import { AuthService } from '../services/auth.service';
 
 import { provideIcons } from '@ng-icons/core';
-import { lucideUpload, lucideVideo, lucideDatabase, lucideFolder, lucideTag, lucideCirclePlay, lucideEllipsisVertical, lucideTrash } from '@ng-icons/lucide';
+import { lucideUpload, lucideVideo, lucideDatabase, lucideFolder, lucideTag, lucideCirclePlay, lucideEllipsisVertical, lucideTrash, lucideSearch } from '@ng-icons/lucide';
 
 export interface Video {
   id: string;
   title: string;
   originalFilename: string;
-  duration: number;
+  durationSeconds: number;
   sizeBytes: number;
   category?: { id: string; name: string; color: string; };
   tags: any[];
@@ -56,7 +56,7 @@ export interface Video {
     MetricCardComponent
   ],
   providers: [
-    provideIcons({ lucideUpload, lucideVideo, lucideDatabase, lucideFolder, lucideTag, lucideCirclePlay, lucideEllipsisVertical, lucideTrash })
+    provideIcons({ lucideUpload, lucideVideo, lucideDatabase, lucideFolder, lucideTag, lucideCirclePlay, lucideEllipsisVertical, lucideTrash, lucideSearch })
   ],
   templateUrl: './dashboard.page.html'
 })
@@ -73,6 +73,7 @@ export class DashboardPage implements OnInit {
   availableTags: any[] = [];
   isLoading = true;
   
+  searchQuery = '';
   selectedCategoryFilter = 'all';
 
   ngOnInit() {
@@ -117,18 +118,37 @@ export class DashboardPage implements OnInit {
   }
 
   applyFilters() {
+    let filtered = this.videos;
+
+    // Filter by search query
+    if (this.searchQuery.trim()) {
+      const q = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(v => 
+        (v.title && v.title.toLowerCase().includes(q)) ||
+        (v.originalFilename && v.originalFilename.toLowerCase().includes(q)) ||
+        (v.tags && v.tags.some((t: any) => t.name.toLowerCase().includes(q)))
+      );
+    }
+
+    // Filter by category
     if (this.selectedCategoryFilter === 'all') {
-      this.filteredVideos = [...this.videos];
+      this.filteredVideos = filtered;
     } else if (this.selectedCategoryFilter === 'uncategorized') {
-      this.filteredVideos = this.videos.filter(v => !v.category);
+      this.filteredVideos = filtered.filter(v => !v.category);
     } else {
-      this.filteredVideos = this.videos.filter(v => v.category?.id === this.selectedCategoryFilter);
+      this.filteredVideos = filtered.filter(v => v.category?.id === this.selectedCategoryFilter);
     }
   }
 
   onFilterChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedCategoryFilter = value;
+    this.applyFilters();
+  }
+
+  onSearchChange(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchQuery = value;
     this.applyFilters();
   }
 

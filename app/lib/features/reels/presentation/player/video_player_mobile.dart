@@ -135,6 +135,7 @@ class PlatformVideoPlayerWidget extends StatelessWidget {
       controller: mobileController.videoController!,
       fit: fit,
       controls: NoVideoControls,
+      fill: Colors.transparent,
     );
   }
 }

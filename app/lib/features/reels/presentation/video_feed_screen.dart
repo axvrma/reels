@@ -161,15 +161,15 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     return Scaffold(
       key: _scaffoldKey,
       drawer: Drawer(
-        backgroundColor: const Color(0xFF1A1A24),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
+            DrawerHeader(
               decoration: BoxDecoration(
-                color: Color(0xFF0A0A0F),
+                color: Theme.of(context).appBarTheme.backgroundColor,
               ),
-              child: Text(
+              child: const Text(
                 'vibes',
                 style: TextStyle(
                   color: Color(0xFFE040FB),
@@ -180,8 +180,8 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
               ),
             ),
             ListTile(
-              leading: const HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Colors.white, size: 24.0),
-              title: const Text('Settings', style: TextStyle(color: Colors.white)),
+              leading: HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () async {
                 Navigator.pop(context); // close drawer
                 final changed = await Navigator.push(
@@ -213,7 +213,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
       ),
       body: Stack(
         children: [
-          Container(color: const Color(0xFF0A0A0F)),
           _buildBody(),
           _buildTopBar(),
         ],
@@ -235,18 +234,15 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
             children: [
               const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: Colors.red, size: 64.0),
               const SizedBox(height: 16),
-              const Text('An error occurred while loading the feed.', style: TextStyle(color: Colors.white, fontSize: 18), textAlign: TextAlign.center),
+              const Text('An error occurred while loading the feed.', style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _loadVideos, child: const Text('Retry')),
               const SizedBox(height: 32),
               Card(
-                color: Colors.white.withValues(alpha: 0.05),
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    iconColor: Colors.white,
-                    collapsedIconColor: Colors.white70,
-                    title: const Text('More details', style: TextStyle(color: Colors.white70)),
+                    title: const Text('More details'),
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -263,8 +259,8 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     }
     
     if (_videos.isEmpty) {
-      return const Center(
-        child: Text('No videos available on the server.', style: TextStyle(color: Colors.white, fontSize: 18)),
+      return Center(
+        child: Text('No videos available on the server.', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 18)),
       );
     }
 
@@ -291,62 +287,73 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   }
 
   Widget _buildTopBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shadowColor = isDark ? Colors.black.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.8);
+    final shadows = [
+      Shadow(color: shadowColor, blurRadius: 2.0),
+      Shadow(color: shadowColor, blurRadius: 6.0),
+      Shadow(color: shadowColor, blurRadius: 12.0),
+    ];
+
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
       child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedMenu01, color: Colors.white, size: 24.0),
-                        onPressed: () {
-                          _scaffoldKey.currentState?.openDrawer();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        "vibes",
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFE040FB),
-                          letterSpacing: -1,
+        child: IconTheme(
+          data: IconTheme.of(context).copyWith(shadows: shadows),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: HugeIcon(icon: HugeIcons.strokeRoundedMenu01, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+                          onPressed: () {
+                            _scaffoldKey.currentState?.openDrawer();
+                          },
                         ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: HugeIcon(
-                          icon: HugeIcons.strokeRoundedHeadphones, 
-                          color: _autoPlayBackground ? const Color(0xFFE040FB) : Colors.white, 
-                          size: 24.0,
+                        const SizedBox(width: 8),
+                        Text(
+                          "vibes",
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFE040FB),
+                            letterSpacing: -1,
+                            shadows: shadows,
+                          ),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _autoPlayBackground = !_autoPlayBackground;
-                          });
-                        },
-                      ),
-                      IconButton(
-                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, color: Colors.white, size: 24.0),
-                        onPressed: _loadVideos,
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: HugeIcon(
+                            icon: HugeIcons.strokeRoundedHeadphones, 
+                            color: _autoPlayBackground ? const Color(0xFFE040FB) : (Theme.of(context).iconTheme.color ?? Colors.white), 
+                            size: 24.0,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _autoPlayBackground = !_autoPlayBackground;
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: HugeIcon(icon: HugeIcons.strokeRoundedRefresh, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+                          onPressed: _loadVideos,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
             if (!SettingsRepository().isLocalMode && _categories.length > 1)
               SizedBox(
                 height: 40,
@@ -371,10 +378,13 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                           }
                         },
                         selectedColor: const Color(0xFFE040FB),
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
+                          color: isSelected 
+                              ? Colors.white 
+                              : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87),
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          shadows: isSelected ? [] : shadows,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -384,7 +394,8 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                   },
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -639,6 +650,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shadowColor = isDark ? Colors.black : Colors.white;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -646,6 +660,37 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         else if (_controller == null) _buildLoadingWidget()
         else _buildVideoPlayer(),
         
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 160,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [shadowColor.withValues(alpha: 0.8), Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 240,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [shadowColor.withValues(alpha: 0.8), Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+
         _buildPlayPauseOverlay(),
         _buildSideActions(),
         _buildVideoInfo(),
@@ -720,36 +765,53 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     if (SettingsRepository().isLocalMode) {
       return const SizedBox.shrink();
     }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shadowColor = isDark ? Colors.black.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.8);
+    final shadows = [
+      Shadow(color: shadowColor, blurRadius: 2.0),
+      Shadow(color: shadowColor, blurRadius: 6.0),
+      Shadow(color: shadowColor, blurRadius: 12.0),
+    ];
     return Positioned(
       right: 16,
       bottom: 140,
-      child: Column(
-        children: [
-          IconButton(
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedFavourite, 
-              color: _videoState.liked ? Colors.red : Colors.white, 
-              size: 36.0,
-            ),
-            onPressed: _toggleLike,
-          ),
-          const SizedBox(height: 16),
-          if (widget.onNavigateUp != null)
+      child: IconTheme(
+        data: IconTheme.of(context).copyWith(shadows: shadows),
+        child: Column(
+          children: [
             IconButton(
-              icon: const Icon(LucideIcons.arrowUp, color: Colors.white, size: 36.0),
-              onPressed: widget.onNavigateUp,
+              icon: HugeIcon(
+                icon: HugeIcons.strokeRoundedFavourite, 
+                color: _videoState.liked ? Colors.red : (Theme.of(context).iconTheme.color ?? Colors.white), 
+                size: 36.0,
+              ),
+              onPressed: _toggleLike,
             ),
-          if (widget.onNavigateDown != null)
-            IconButton(
-              icon: const Icon(LucideIcons.arrowDown, color: Colors.white, size: 36.0),
-              onPressed: widget.onNavigateDown,
-            ),
-        ],
+            const SizedBox(height: 16),
+            if (widget.onNavigateUp != null)
+              IconButton(
+                icon: Icon(LucideIcons.arrowUp, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
+                onPressed: widget.onNavigateUp,
+              ),
+            if (widget.onNavigateDown != null)
+              IconButton(
+                icon: Icon(LucideIcons.arrowDown, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
+                onPressed: widget.onNavigateDown,
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildVideoInfo() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shadowColor = isDark ? Colors.black.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.8);
+    final shadows = [
+      Shadow(color: shadowColor, blurRadius: 2.0),
+      Shadow(color: shadowColor, blurRadius: 6.0),
+      Shadow(color: shadowColor, blurRadius: 12.0),
+    ];
     return Positioned(
       left: 16,
       bottom: 40,
@@ -759,7 +821,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         children: [
           Text(
             widget.video.title,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color, 
+              fontSize: 16, 
+              fontWeight: FontWeight.bold,
+              shadows: shadows,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(

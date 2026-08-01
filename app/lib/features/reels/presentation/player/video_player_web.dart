@@ -129,6 +129,7 @@ class PlatformVideoPlayerWidget extends StatelessWidget {
       controller: webController.videoController!,
       fit: fit,
       controls: NoVideoControls,
+      fill: Colors.transparent,
     );
   }
 }

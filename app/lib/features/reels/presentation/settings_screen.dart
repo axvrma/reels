@@ -17,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _settings = SettingsRepository();
   late TextEditingController _urlController;
   late bool _isLocalMode;
+  late bool _isDarkMode;
   String? _localFolderPath;
 
   @override
@@ -24,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _urlController = TextEditingController(text: _settings.serverUrl);
     _isLocalMode = _settings.isLocalMode;
+    _isDarkMode = _settings.isDarkMode;
     _localFolderPath = _settings.localFolderPath;
   }
 
@@ -92,18 +94,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Settings'),
-          backgroundColor: const Color(0xFF0A0A0F),
           leading: IconButton(
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01, color: Colors.white, size: 24.0),
+            icon: HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01, color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white, size: 24.0),
             onPressed: _saveAndPop,
           ),
         ),
         body: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
+            SwitchListTile(
+              title: const Text('Dark Mode'),
+              subtitle: const Text('Toggle between light and dark theme', style: TextStyle(color: Colors.grey)),
+              activeColor: const Color(0xFFE040FB),
+              value: _isDarkMode,
+              onChanged: (val) async {
+                setState(() {
+                  _isDarkMode = val;
+                });
+                await _settings.setIsDarkMode(val);
+              },
+            ),
+            const Divider(color: Colors.grey),
             if (!kIsWeb) ...[
               SwitchListTile(
-                title: const Text('Local Folder Mode', style: TextStyle(color: Colors.white)),
+                title: const Text('Local Folder Mode'),
                 subtitle: const Text('Play videos directly from the device', style: TextStyle(color: Colors.grey)),
                 activeColor: const Color(0xFFE040FB),
                 value: _isLocalMode,
@@ -117,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
             if (_isLocalMode) ...[
               ListTile(
-                title: const Text('Local Folder Path', style: TextStyle(color: Colors.white)),
+                title: const Text('Local Folder Path'),
                 subtitle: Text(_localFolderPath ?? 'No folder selected', style: const TextStyle(color: Colors.grey)),
                 trailing: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE040FB)),
@@ -128,11 +142,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ] else ...[
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Server URL', style: TextStyle(color: Colors.white, fontSize: 16)),
+                child: Text('Server URL', style: TextStyle(fontSize: 16)),
               ),
               TextField(
                 controller: _urlController,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   hintText: 'http://10.0.2.2:3000/api',
                   hintStyle: TextStyle(color: Colors.grey),
@@ -159,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   }
                 },
-                icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeftRight, color: Colors.white, size: 24.0),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeftRight, color: Colors.redAccent, size: 24.0),
                 label: const Text('Change App Mode'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent.withOpacity(0.2),

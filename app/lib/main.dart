@@ -30,15 +30,43 @@ class VibesApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Vibes',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0A0A0F),
-        primaryColor: const Color(0xFFE040FB),
-      ),
-      home: const InitialRouteWidget(),
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('settingsData').listenable(keys: [SettingsRepository.keyIsDarkMode]),
+      builder: (context, box, child) {
+        final isDarkMode = box.get(SettingsRepository.keyIsDarkMode, defaultValue: true);
+        return MaterialApp(
+          title: 'Vibes',
+          debugShowCheckedModeBanner: false,
+          themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData(
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: Colors.white,
+            primaryColor: const Color(0xFFE040FB),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+            ),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Colors.black),
+              bodyMedium: TextStyle(color: Colors.black87),
+            ),
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF0A0A0F),
+            primaryColor: const Color(0xFFE040FB),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF0A0A0F),
+              foregroundColor: Colors.white,
+            ),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Colors.white),
+              bodyMedium: TextStyle(color: Colors.white70),
+            ),
+          ),
+          home: const InitialRouteWidget(),
+        );
+      },
     );
   }
 }

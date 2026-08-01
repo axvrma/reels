@@ -55,16 +55,24 @@
     <div hlmCardHeader class="flex flex-row items-center justify-between py-4">
       <h3 hlmCardTitle>Recent Videos</h3>
       
-      <div class="flex items-center space-x-2">
-        <label hlmLabel class="sr-only">Filter by Category</label>
-        <select class="flex h-10 w-48 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                (change)="onFilterChange($event)">
-          <option value="all">All Categories</option>
-          <option value="uncategorized">Uncategorized</option>
-          <option *ngFor="let cat of categories" [value]="cat.id">
-            {{cat.name}}
-          </option>
-        </select>
+      <div class="flex items-center space-x-4">
+        <!-- Search Bar -->
+        <div class="relative w-64 hidden sm:block">
+          <ng-icon hlm name="lucideSearch" class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"></ng-icon>
+          <input hlmInput placeholder="Search videos, categories, tags..." class="pl-9 w-full" [value]="searchQuery" (input)="onSearchChange($event)" />
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <label hlmLabel class="sr-only">Filter by Category</label>
+          <select class="flex h-10 w-48 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                  (change)="onFilterChange($event)">
+            <option value="all">All Categories</option>
+            <option value="uncategorized">Uncategorized</option>
+            <option *ngFor="let cat of categories" [value]="cat.id">
+              {{cat.name}}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -78,7 +86,7 @@
           <th hlmTh>Tags</th>
           <th hlmTh>Duration</th>
           <th hlmTh>Size</th>
-          <th hlmTh class="w-[80px]"></th>
+          <th hlmTh>Actions</th>
         </thead>
         <tbody class="[&_tr:last-child]:border-0">
           <tr hlmTrow *ngFor="let element of filteredVideos">
@@ -86,7 +94,7 @@
               <div class="relative w-24 h-16 rounded overflow-hidden cursor-pointer group bg-black" (click)="playVideo(element)">
                 <img [src]="getThumbnailUrl(element.thumbnailUrl)" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                  <ng-icon hlm name="lucidePlayCircle" class="h-8 w-8 text-white drop-shadow-md"></ng-icon>
+                  <ng-icon hlm name="lucideCirclePlay" class="h-8 w-8 text-white drop-shadow-md"></ng-icon>
                 </div>
               </div>
             </td>
@@ -113,24 +121,17 @@
                 </span>
               </div>
             </td>
-            <td hlmTd class="whitespace-nowrap">{{ formatDuration(element.duration) }}</td>
+            <td hlmTd class="whitespace-nowrap">{{ formatDuration(element.durationSeconds) }}</td>
             <td hlmTd class="whitespace-nowrap">{{ formatBytes(element.sizeBytes) }}</td>
             <td hlmTd>
-              <button hlmBtn variant="ghost" size="icon" [hlmDropdownMenuTrigger]="menu">
-                <ng-icon hlm name="lucideMoreVertical" class="h-4 w-4"></ng-icon>
-              </button>
-              <ng-template #menu>
-                <hlm-dropdown-menu>
-                  <button hlmDropdownMenuItem (click)="updateTags(element)">
-                    <ng-icon hlm name="lucideTag" class="mr-2 h-4 w-4"></ng-icon>
-                    <span>Manage Tags</span>
-                  </button>
-                  <button hlmDropdownMenuItem (click)="deleteVideo(element)" class="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                    <ng-icon hlm name="lucideTrash" class="mr-2 h-4 w-4"></ng-icon>
-                    <span>Delete</span>
-                  </button>
-                </hlm-dropdown-menu>
-              </ng-template>
+              <div class="flex space-x-2">
+                <button hlmBtn variant="ghost" size="icon" (click)="updateTags(element)" title="Manage Tags">
+                  <ng-icon hlm name="lucideTag" class="h-4 w-4 text-muted-foreground hover:text-primary transition-colors"></ng-icon>
+                </button>
+                <button hlmBtn variant="ghost" size="icon" (click)="deleteVideo(element)" title="Delete">
+                  <ng-icon hlm name="lucideTrash" class="h-4 w-4 text-destructive hover:text-destructive/80 transition-colors"></ng-icon>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -138,7 +139,14 @@
     </div>
 
     <!-- Mobile List View -->
-    <div class="md:hidden divide-y">
+    <div class="md:hidden p-4 pb-0">
+      <div class="relative w-full">
+        <ng-icon hlm name="lucideSearch" class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"></ng-icon>
+        <input hlmInput placeholder="Search videos..." class="pl-9 w-full" [value]="searchQuery" (input)="onSearchChange($event)" />
+      </div>
+    </div>
+    
+    <div class="md:hidden divide-y mt-2">
       <div *ngFor="let element of filteredVideos" class="flex p-4 gap-4">
         <div class="relative w-24 h-16 shrink-0 rounded overflow-hidden bg-black" (click)="playVideo(element)">
           <img [src]="getThumbnailUrl(element.thumbnailUrl)" class="w-full h-full object-cover opacity-80" />
@@ -151,7 +159,7 @@
               <span class="truncate">{{element.category.name}}</span>
             </span>
             <span>&middot;</span>
-            <span>{{ formatDuration(element.duration) }}</span>
+            <span>{{ formatDuration(element.durationSeconds) }}</span>
             <span>&middot;</span>
             <span>{{ formatBytes(element.sizeBytes) }}</span>
           </div>
@@ -161,22 +169,13 @@
             </span>
           </div>
         </div>
-        <div>
-          <button hlmBtn variant="ghost" size="icon" [hlmDropdownMenuTrigger]="mobileMenu">
-            <ng-icon hlm name="lucideMoreVertical" class="h-4 w-4"></ng-icon>
+        <div class="flex flex-col items-center justify-center space-y-2">
+          <button hlmBtn variant="ghost" size="icon" (click)="updateTags(element)" title="Manage Tags">
+            <ng-icon hlm name="lucideTag" class="h-4 w-4 text-muted-foreground"></ng-icon>
           </button>
-          <ng-template #mobileMenu>
-            <hlm-dropdown-menu>
-              <button hlmDropdownMenuItem (click)="updateTags(element)">
-                <ng-icon hlm name="lucideTag" class="mr-2 h-4 w-4"></ng-icon>
-                <span>Manage Tags</span>
-              </button>
-              <button hlmDropdownMenuItem (click)="deleteVideo(element)" class="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                <ng-icon hlm name="lucideTrash" class="mr-2 h-4 w-4"></ng-icon>
-                <span>Delete</span>
-              </button>
-            </hlm-dropdown-menu>
-          </ng-template>
+          <button hlmBtn variant="ghost" size="icon" (click)="deleteVideo(element)" title="Delete">
+            <ng-icon hlm name="lucideTrash" class="h-4 w-4 text-destructive"></ng-icon>
+          </button>
         </div>
       </div>
     </div>

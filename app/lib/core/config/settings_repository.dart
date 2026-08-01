@@ -6,6 +6,7 @@ class SettingsRepository {
   static const String keyServerUrl = 'serverUrl';
   static const String keyIsLocalMode = 'isLocalMode';
   static const String keyLocalFolderPath = 'localFolderPath';
+  static const String keyIsDarkMode = 'isDarkMode';
 
   static const String keyHasSelectedMode = 'hasSelectedMode';
   static const String keyHasSeenWelcome = 'hasSeenWelcome';
@@ -42,5 +43,11 @@ class SettingsRepository {
 
   Future<void> setLocalFolderPath(String path) async {
     await _box.put(keyLocalFolderPath, path);
+  }
+
+  bool get isDarkMode => _box.get(keyIsDarkMode, defaultValue: true);
+
+  Future<void> setIsDarkMode(bool isDark) async {
+    await _box.put(keyIsDarkMode, isDark);
   }
 }
