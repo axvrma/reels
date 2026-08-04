@@ -103,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.all(16.0),
           children: [
             SwitchListTile(
-              title: const Text('Dark Mode'),
+              title: const Text('App Theme (Dark Mode)'),
               subtitle: const Text('Toggle between light and dark theme', style: TextStyle(color: Colors.grey)),
               activeColor: const Color(0xFFE040FB),
               value: _isDarkMode,

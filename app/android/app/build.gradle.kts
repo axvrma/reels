@@ -44,17 +44,6 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
-    // Split APKs by ABI for smaller download sizes
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
-        }
-    }
-
     buildTypes {
         release {
             // Enable R8 minification and optimization
@@ -69,26 +58,6 @@ android {
             // Use release signing config
             signingConfig = signingConfigs.getByName("release")
         }
-    }
-
-    // Generate unique version codes for each ABI
-    applicationVariants.all {
-        val variant = this
-        variant.outputs
-            .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
-            .forEach { output ->
-                val abi = output.getFilter("ABI")
-                if (abi != null) {
-                    val baseVersionCode = variant.versionCode
-                    val abiVersionCode = when (abi) {
-                        "armeabi-v7a" -> 1
-                        "arm64-v8a" -> 2
-                        "x86_64" -> 3
-                        else -> 0
-                    }
-                    output.versionCodeOverride = baseVersionCode * 10 + abiVersionCode
-                }
-            }
     }
 }
 

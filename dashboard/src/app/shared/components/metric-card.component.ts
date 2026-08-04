@@ -10,7 +10,6 @@ import { lucideVideo, lucideDatabase, lucideFolder, lucideTag } from '@ng-icons/
   selector: 'app-metric-card',
   standalone: true,
   imports: [CommonModule, HlmCardImports, HlmIconImports],
-  providers: [provideIcons({ lucideVideo, lucideDatabase, lucideFolder, lucideTag })],
   template: `
     <div hlmCard class="flex flex-col p-6 shadow-sm transition-colors hover:bg-muted/30 cursor-default">
       <div class="flex items-center justify-between pb-3">

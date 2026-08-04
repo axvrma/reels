@@ -27,11 +27,13 @@ AdaptiveVideoController createAdaptiveVideoController() {
 class AdaptiveVideoPlayerWidget extends StatelessWidget {
   final AdaptiveVideoController controller;
   final BoxFit fit;
+  final bool pauseUponEnteringBackgroundMode;
 
   const AdaptiveVideoPlayerWidget({
     super.key,
     required this.controller,
     this.fit = BoxFit.contain,
+    this.pauseUponEnteringBackgroundMode = true,
   });
 
   @override
@@ -39,6 +41,7 @@ class AdaptiveVideoPlayerWidget extends StatelessWidget {
     return PlatformVideoPlayerWidget(
       controller: controller,
       fit: fit,
+      pauseUponEnteringBackgroundMode: pauseUponEnteringBackgroundMode,
     );
   }
 }

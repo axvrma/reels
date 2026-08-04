@@ -9,7 +9,11 @@ AdaptiveVideoController createPlatformVideoController() {
 }
 
 class MobileVideoController implements AdaptiveVideoController {
-  final Player _player = Player();
+  final Player _player = Player(
+    configuration: const PlayerConfiguration(
+      title: 'vibes',
+    ),
+  );
   VideoController? _videoController;
   
   bool _isPlaying = false;
@@ -62,7 +66,10 @@ class MobileVideoController implements AdaptiveVideoController {
 
   @override
   Future<void> initialize(Uri url, {Object? file, Map<String, String>? headers}) async {
-    _videoController = VideoController(_player);
+    _hasError = false;
+    _errorDescription = null;
+    _notifyListeners();
+    _videoController ??= VideoController(_player);
     if (file != null && file is File) {
       await _player.open(Media(file.path), play: false);
     } else {
@@ -112,30 +119,68 @@ class MobileVideoController implements AdaptiveVideoController {
   }
 }
 
-class PlatformVideoPlayerWidget extends StatelessWidget {
+class PlatformVideoPlayerWidget extends StatefulWidget {
   final AdaptiveVideoController controller;
   final BoxFit fit;
+  final bool pauseUponEnteringBackgroundMode;
 
   const PlatformVideoPlayerWidget({
     super.key,
     required this.controller,
     this.fit = BoxFit.contain,
+    this.pauseUponEnteringBackgroundMode = true,
   });
 
   @override
+  State<PlatformVideoPlayerWidget> createState() => _PlatformVideoPlayerWidgetState();
+}
+
+class _PlatformVideoPlayerWidgetState extends State<PlatformVideoPlayerWidget> with WidgetsBindingObserver {
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    setState(() {
+      _lifecycleState = state;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final mobileController = controller as MobileVideoController;
+    final mobileController = widget.controller as MobileVideoController;
     if (mobileController.videoController == null) {
       return const Center(child: CircularProgressIndicator());
     }
     
+    // If not paused by lifecycle (or if we are allowing background audio, we unmount the Video widget
+    // to prevent Surface crashes, while letting the audio keep playing).
+    final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.detached || _lifecycleState == AppLifecycleState.hidden;
+    
+    if (isBackground && !widget.pauseUponEnteringBackgroundMode) {
+      // Unmount the Video widget to prevent rendering to a dead surface, but keep audio playing.
+      return const SizedBox.shrink();
+    }
+
     // We disable the built-in media_kit controls since our video_feed_screen
     // handles all the play/pause/like gestures.
     return Video(
       controller: mobileController.videoController!,
-      fit: fit,
+      fit: widget.fit,
       controls: NoVideoControls,
       fill: Colors.transparent,
+      pauseUponEnteringBackgroundMode: widget.pauseUponEnteringBackgroundMode,
     );
   }
 }

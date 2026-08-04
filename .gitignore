@@ -56,3 +56,6 @@ app.*.map.json
 /server/dist/
 /dashboard/dist/
 /dashboard/.angular/
+
+build_log.txt
+rewrite_feed*.py

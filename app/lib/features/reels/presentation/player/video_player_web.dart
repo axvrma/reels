@@ -8,7 +8,11 @@ AdaptiveVideoController createPlatformVideoController() {
 }
 
 class WebVideoController implements AdaptiveVideoController {
-  final Player _player = Player();
+  final Player _player = Player(
+    configuration: const PlayerConfiguration(
+      title: 'vibes',
+    ),
+  );
   VideoController? _videoController;
   
   bool _isPlaying = false;
@@ -111,11 +115,13 @@ class WebVideoController implements AdaptiveVideoController {
 class PlatformVideoPlayerWidget extends StatelessWidget {
   final AdaptiveVideoController controller;
   final BoxFit fit;
+  final bool pauseUponEnteringBackgroundMode;
 
   const PlatformVideoPlayerWidget({
     super.key,
     required this.controller,
     this.fit = BoxFit.contain,
+    this.pauseUponEnteringBackgroundMode = true,
   });
 
   @override
@@ -130,6 +136,7 @@ class PlatformVideoPlayerWidget extends StatelessWidget {
       fit: fit,
       controls: NoVideoControls,
       fill: Colors.transparent,
+      pauseUponEnteringBackgroundMode: pauseUponEnteringBackgroundMode,
     );
   }
 }

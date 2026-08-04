@@ -1,7 +1,6 @@
-
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hugeicons/hugeicons.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -13,10 +12,10 @@ import '../data/server_video_repository.dart';
 import '../data/local_video_repository.dart';
 import '../domain/video_state.dart';
 import 'settings_screen.dart';
+import 'package:dio/dio.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/login_screen.dart';
 import 'player/adaptive_video_player.dart';
-
 class VideoFeedScreen extends StatefulWidget {
   const VideoFeedScreen({super.key});
 
@@ -24,7 +23,7 @@ class VideoFeedScreen extends StatefulWidget {
   State<VideoFeedScreen> createState() => _VideoFeedScreenState();
 }
 
-class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   VideoRepository _repository = ServerVideoRepository();
   List<VideoItem> _allVideos = [];
@@ -37,48 +36,34 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   bool _autoPlayBackground = false;
-  bool _isRefreshingToken = false;
   
   late AnimationController _pulseController;
   final Box box = Hive.box('videoData');
 
-  final Map<int, AdaptiveVideoController> _controllers = {};
-  final Map<int, VideoState> _videoStates = {};
-  final Map<int, bool> _hasNavigatedMap = {};
-  
-  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
-    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
     
-    if (SettingsRepository().isLocalMode) {
-      _repository = LocalVideoRepository();
-    }
-    _loadVideos();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    WakelockPlus.disable();
-    _pulseController.dispose();
-    _pageController.dispose();
-    for (var controller in _controllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
+    _initApp();
   }
   
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    setState(() {
-      _lifecycleState = state;
-    });
-    _manageControllers();
+  Future<void> _initApp() async {
+    final settings = SettingsRepository();
+    if (settings.isLocalMode) {
+      _repository = LocalVideoRepository();
+    } else {
+      _repository = ServerVideoRepository();
+    }
+    
+    if (_repository is ServerVideoRepository) {
+      await (_repository as ServerVideoRepository).cleanStaleFiles();
+    }
+    _loadVideos();
   }
 
   Future<void> _loadVideos() async {
@@ -86,22 +71,31 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
       _isLoading = true;
       _error = null;
     });
+    
     try {
-      final videos = await _repository.getVideos();
-      final Set<String> uniqueCategories = {'All'};
-      for (var v in videos) {
-        if (v.category != null) {
-          uniqueCategories.add(v.category!.name);
+      final settings = SettingsRepository();
+      List<String> categories = ['All'];
+      if (!settings.isLocalMode) {
+        final dio = Dio();
+        final token = await AuthRepository().getAccessToken();
+        if (token != null) {
+          dio.options.headers['Authorization'] = 'Bearer $token';
         }
+        
+        final catsRes = await dio.get('${settings.serverUrl}/categories');
+        final List catsJson = catsRes.data;
+        categories.addAll(catsJson.map((c) => c['name'].toString()));
       }
-      
+
+      final videos = await _repository.getVideos();
+      videos.shuffle();
       setState(() {
         _allVideos = videos;
-        _categories = uniqueCategories.toList()..sort((a, b) => a == 'All' ? -1 : a.compareTo(b));
+        _categories = categories;
         _isLoading = false;
         _applyCategoryFilter();
       });
-      _manageControllers();
+      _syncPendingStates();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -111,271 +105,99 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   }
 
   void _applyCategoryFilter() {
-    if (_selectedCategory == 'All') {
-      _videos = List.from(_allVideos);
-    } else {
-      _videos = _allVideos.where((v) => v.category?.name == _selectedCategory).toList();
-    }
-    
-    for (var controller in _controllers.values) {
-      controller.dispose();
-    }
-    _controllers.clear();
-    _videoStates.clear();
-    _hasNavigatedMap.clear();
-    
-    _currentIndex = 0;
-    if (_pageController.hasClients) {
-      _pageController.jumpToPage(0);
-    }
-    _manageControllers();
+    setState(() {
+      if (_selectedCategory == 'All') {
+        _videos = _allVideos;
+      } else {
+        _videos = _allVideos.where((v) => v.category?.name == _selectedCategory).toList();
+      }
+      _currentIndex = 0;
+      if (_videos.isNotEmpty && _pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+    });
   }
   
-  void _onPageChanged(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-    _manageControllers();
-  }
-
-  void _manageControllers() {
-    if (_videos.isEmpty) return;
-    final prev = _currentIndex - 1;
-    final current = _currentIndex;
-    final next = _currentIndex + 1;
+  Future<void> _syncPendingStates() async {
+    final settings = SettingsRepository();
+    if (settings.isLocalMode) return;
     
-    // Initialize required
-    for (int i in [prev, current, next]) {
-      if (i >= 0 && i < _videos.length) {
-        if (!_controllers.containsKey(i)) {
-          _initializeController(i);
-        }
-      }
-    }
-    
-    // Dispose unused
-    final keysToRemove = _controllers.keys.where((k) => k < prev || k > next).toList();
-    for (int k in keysToRemove) {
-      _controllers[k]?.dispose();
-      _controllers.remove(k);
-    }
-    
-    // Play/Pause logic
-    _controllers.forEach((index, controller) {
-      if (index == current) {
-        final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.detached || _lifecycleState == AppLifecycleState.hidden;
-        if (!isBackground || _autoPlayBackground) {
-           controller.play();
-        } else {
-           controller.pause();
-        }
-      } else {
-        controller.pause();
-      }
-    });
-  }
-
-  Future<void> _initializeController(int index) async {
-    final video = _videos[index];
-    
-    AdaptiveVideoController controller;
-    bool isNew = false;
-    if (_controllers.containsKey(index)) {
-      controller = _controllers[index]!;
-    } else {
-      controller = createAdaptiveVideoController();
-      _controllers[index] = controller;
-      isNew = true;
-    }
-    
-    // Load VideoState
-    VideoState vState = VideoState(videoId: video.id, updatedAt: DateTime.now());
-    final cached = box.get('video_${video.id}');
-    if (cached != null) {
-      try {
-        final map = Map<String, dynamic>.from(cached);
-        vState = VideoState(
-          videoId: video.id,
-          liked: map['liked'] ?? false,
-          note: map['note'] ?? '',
-          progressSeconds: map['progressSeconds'] ?? 0.0,
-          updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : DateTime.now(),
-        );
-      } catch (_) {}
-    }
-    _videoStates[index] = vState;
-    if (isNew) {
-      _hasNavigatedMap[index] = false;
-      controller.addListener(() {
-        _videoListener(index);
-      });
-    }
-    
-    // Construct URI and Headers logic from original code
-    Uri streamUri = video.streamUrl;
-    final headers = <String, String>{};
-    
-    if (streamUri.scheme != 'file') {
-      final token = await AuthRepository().getAccessToken();
-      if (token != null) {
-        if (!SettingsRepository().isLocalMode) {
-          headers['Authorization'] = 'Bearer $token';
-        } else {
-          final queryParams = Map<String, dynamic>.from(streamUri.queryParameters);
-          queryParams['token'] = token;
-          streamUri = streamUri.replace(queryParameters: queryParams);
-        }
-      }
-    }
-    
-    // We try to get cached file using the repository
-    Object? cachedFile;
-    try {
-      cachedFile = await _repository.getCachedVideo(video.id);
-    } catch (_) {}
-
-    
-    await controller.initialize(streamUri, file: cachedFile, headers: headers);
-    controller.setLooping(!_autoPlayBackground);
-    
-    if (vState.progressSeconds > 0) {
-      controller.seekTo(Duration(seconds: vState.progressSeconds.toInt()));
-    }
-    
-    if (mounted) setState(() {});
-  }
-
-  void _videoListener(int index) {
-    if (!mounted) return;
-    final controller = _controllers[index];
-    if (controller == null) return;
-    
-    // Auto-refresh token if a stream error occurs (token expired)
-    if (controller.hasError && !_isRefreshingToken) {
-      _isRefreshingToken = true;
-      AuthRepository().refresh().then((newToken) {
-        if (!mounted) return;
-        _isRefreshingToken = false;
-        if (newToken != null) {
-          // Re-initialize all active controllers since their tokens likely expired too
-          for (final key in _controllers.keys.toList()) {
-             _initializeController(key).then((_) {
-                if (key == _currentIndex && mounted) {
-                   _manageControllers();
-                }
-             });
+    // Basic offline sync logic: sync any states saved while offline
+    final dio = Dio();
+    for (var key in box.keys) {
+      if (key.toString().endsWith('_state')) {
+        final stateJson = box.get(key);
+        if (stateJson != null && stateJson['syncPending'] == true) {
+          try {
+            await dio.put(
+              '${settings.serverUrl}/videos/${stateJson['videoId']}/state',
+              data: {
+                'liked': stateJson['liked'],
+                'note': stateJson['note'],
+                'progress_seconds': stateJson['progressSeconds'],
+              }
+            );
+            // Mark synced
+            stateJson['syncPending'] = false;
+            box.put(key, stateJson);
+          } catch (e) {
+            // Ignore, will retry next time
           }
         }
-      });
-    }
-    
-    if (index == _currentIndex) {
-      if (controller.position.inSeconds > 0 && controller.position.inSeconds % 5 == 0) {
-        setState(() {
-          _videoStates[index] = _videoStates[index]!.copyWith(progressSeconds: controller.position.inSeconds.toDouble());
-        });
-        _saveState(index);
-      }
-      
-      // Auto-advance logic
-      if (_autoPlayBackground && 
-          !(_hasNavigatedMap[index] ?? false) &&
-          controller.duration.inMilliseconds > 0 &&
-          controller.position.inMilliseconds >= controller.duration.inMilliseconds - 300) {
-        
-        _hasNavigatedMap[index] = true;
-        if (index < _videos.length - 1) {
-          _advanceToNextVideo();
-        }
       }
     }
   }
 
-  void _advanceToNextVideo() {
-    if (_currentIndex < _videos.length - 1) {
-      final newIndex = _currentIndex + 1;
-      final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.hidden || _lifecycleState == AppLifecycleState.detached;
-      
-      if (isBackground) {
-         setState(() {
-           _currentIndex = newIndex;
-         });
-         _manageControllers();
-         if (_pageController.hasClients) {
-            _pageController.jumpToPage(newIndex);
-         }
-      } else {
-         if (_pageController.hasClients) {
-            _pageController.animateToPage(newIndex, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-         }
-      }
-    }
-  }
-
-  void _saveState(int index) {
-    final state = _videoStates[index];
-    final video = _videos[index];
-    if (state != null) {
-      box.put('video_${video.id}', {
-        'liked': state.liked,
-        'note': state.note,
-        'progressSeconds': state.progressSeconds,
-        'updatedAt': state.updatedAt.toIso8601String(),
-      });
-    }
-  }
-  
-  void _toggleLike(int index) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      final state = _videoStates[index] ?? VideoState(videoId: _videos[index].id, updatedAt: DateTime.now());
-      _videoStates[index] = state.copyWith(liked: !state.liked);
-    });
-    _saveState(index);
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    _pageController.dispose();
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: isDark ? Colors.black : Colors.white,
       drawer: Drawer(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFE040FB), Color(0xFF7C4DFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+              decoration: BoxDecoration(
+                color: Theme.of(context).appBarTheme.backgroundColor,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Text('vibes', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1)),
-                  const SizedBox(height: 8),
-                  Text('Find your vibe', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16)),
-                ],
+              child: const Text(
+                'vibes',
+                style: TextStyle(
+                  color: Color(0xFFE040FB),
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -1,
+                ),
               ),
             ),
             ListTile(
-              leading: const HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Colors.black54, size: 24.0),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              leading: HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () async {
+                Navigator.pop(context); // close drawer
+                final changed = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
+                if (changed == true) {
+                  _initApp();
+                }
               },
             ),
             ListTile(
               leading: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: Colors.redAccent, size: 24.0),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(context); // close drawer
                 await AuthRepository().logout();
                 if (context.mounted) {
                   Navigator.pushAndRemoveUntil(
@@ -445,32 +267,19 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     return PageView.builder(
       controller: _pageController,
       scrollDirection: Axis.vertical,
-      onPageChanged: _onPageChanged,
+      onPageChanged: (idx) => setState(() => _currentIndex = idx),
       itemCount: _videos.length,
       itemBuilder: (context, index) {
-        final controller = _controllers[index];
-        final state = _videoStates[index] ?? VideoState(videoId: _videos[index].id, updatedAt: DateTime.now());
-        
         return VideoPlayerScreen(
           key: ValueKey(_videos[index].id),
           video: _videos[index],
-          controller: controller,
-          videoState: state,
+          repository: _repository,
           autoPlayMode: _autoPlayBackground,
-          onToggleLike: () => _toggleLike(index),
           onNavigateUp: index > 0 
-              ? () {
-                  if (_pageController.hasClients) {
-                    _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                  }
-                }
+              ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
               : null,
           onNavigateDown: index < _videos.length - 1 
-              ? () {
-                  if (_pageController.hasClients) {
-                    _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                  }
-                }
+              ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
               : null,
           pauseUponEnteringBackgroundMode: !_autoPlayBackground,
         );
@@ -534,9 +343,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                           onPressed: () {
                             setState(() {
                               _autoPlayBackground = !_autoPlayBackground;
-                              for (var controller in _controllers.values) {
-                                controller.setLooping(!_autoPlayBackground);
-                              }
                             });
                           },
                         ),
@@ -599,9 +405,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
 
 class VideoPlayerScreen extends StatefulWidget {
   final VideoItem video;
-  final AdaptiveVideoController? controller;
-  final VideoState videoState;
-  final VoidCallback onToggleLike;
+  final VideoRepository repository;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateDown;
   final bool autoPlayMode;
@@ -610,9 +414,7 @@ class VideoPlayerScreen extends StatefulWidget {
   const VideoPlayerScreen({
     super.key,
     required this.video,
-    required this.controller,
-    required this.videoState,
-    required this.onToggleLike,
+    required this.repository,
     this.autoPlayMode = false,
     this.pauseUponEnteringBackgroundMode = true,
     this.onNavigateUp,
@@ -624,48 +426,227 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTickerProviderStateMixin {
-  bool _showPlayPauseIcon = false;
+  AdaptiveVideoController? _controller;
+  bool _isPlaying = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+  Object? _cachedFile;
+  
+  late VideoState _videoState;
+  final Box box = Hive.box('videoData');
   late AnimationController _likeAnimController;
-  late Animation<double> _likeScaleAnim;
+  bool _showPlayPauseIcon = false;
+  String? _stateKey;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
     super.initState();
-    _likeAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _likeScaleAnim = Tween<double>(begin: 0.0, end: 1.2).animate(
-      CurvedAnimation(parent: _likeAnimController, curve: Curves.elasticOut),
+    _videoState = VideoState(
+      videoId: widget.video.id,
+      updatedAt: DateTime.now(),
     );
+    _likeAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _loadState();
+    _initializeVideo();
+  }
+
+  void _loadState() async {
+    final authRepo = AuthRepository();
+    final userId = await authRepo.getUserId() ?? 'unknown';
+    _stateKey = '${userId}_${widget.video.id}_state';
+
+    final stateJson = box.get(_stateKey);
+    if (stateJson != null) {
+      if (mounted) {
+        setState(() {
+          _videoState = VideoState(
+            videoId: widget.video.id,
+            liked: stateJson['liked'],
+            note: stateJson['note'],
+            progressSeconds: stateJson['progressSeconds'],
+            updatedAt: DateTime.parse(stateJson['updatedAt']),
+            syncPending: stateJson['syncPending'],
+          );
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _videoState = VideoState(
+            videoId: widget.video.id,
+            updatedAt: DateTime.now(),
+          );
+        });
+      }
+    }
+  }
+
+  void _saveState() {
+    if (_stateKey == null) return;
+    _videoState = _videoState.copyWith(
+      updatedAt: DateTime.now(),
+      syncPending: true,
+    );
+    
+    box.put(_stateKey, {
+      'videoId': _videoState.videoId,
+      'liked': _videoState.liked,
+      'note': _videoState.note,
+      'progressSeconds': _videoState.progressSeconds,
+      'updatedAt': _videoState.updatedAt.toIso8601String(),
+      'syncPending': _videoState.syncPending,
+    });
+    
+    // Attempt async save to API
+    final settings = SettingsRepository();
+    if (!settings.isLocalMode) {
+      widget.repository.saveProgress(widget.video.id, _videoState.progressSeconds);
+      widget.repository.saveNote(widget.video.id, _videoState.note);
+      if (_videoState.liked) {
+        widget.repository.likeVideo(widget.video.id);
+      } else {
+        widget.repository.unlikeVideo(widget.video.id);
+      }
+      
+      _videoState = _videoState.copyWith(syncPending: false);
+      box.put(_stateKey, {
+        'videoId': _videoState.videoId,
+        'liked': _videoState.liked,
+        'note': _videoState.note,
+        'progressSeconds': _videoState.progressSeconds,
+        'updatedAt': _videoState.updatedAt.toIso8601String(),
+        'syncPending': _videoState.syncPending,
+      });
+    }
+  }
+
+  Future<void> _initializeVideo() async {
+    _cachedFile = await widget.repository.getCachedVideo(widget.video.id);
+    
+    _controller = createAdaptiveVideoController();
+    _controller!.addListener(_videoListener);
+
+    try {
+      if (_cachedFile != null) {
+        await _controller!.initialize(widget.video.streamUrl, file: _cachedFile);
+      } else {
+        if (widget.video.streamUrl.scheme == 'file') {
+          // File from dart:io is avoided here for web safety
+          await _controller!.initialize(widget.video.streamUrl, file: null);
+        } else {
+          final token = await AuthRepository().getAccessToken();
+          final headers = <String, String>{};
+          Uri streamUri = widget.video.streamUrl;
+          
+          if (token != null) {
+            headers['Authorization'] = 'Bearer $token';
+            if (kIsWeb) {
+              final queryParams = Map<String, dynamic>.from(streamUri.queryParameters);
+              queryParams['token'] = token;
+              streamUri = streamUri.replace(queryParameters: queryParams);
+            }
+          }
+          await _controller!.initialize(streamUri, headers: headers);
+        }
+      }
+
+      if (mounted) {
+        setState(() => _isPlaying = true);
+        await _controller!.setLooping(!widget.autoPlayMode);
+        if (_videoState.progressSeconds > 0 && _videoState.progressSeconds < _controller!.duration.inSeconds) {
+          await _controller!.seekTo(Duration(seconds: _videoState.progressSeconds.toInt()));
+        }
+        await _controller!.play();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = e.toString();
+        });
+      }
+    }
+  }
+
+  void _videoListener() {
+    if (mounted && _controller != null) {
+      final isPlaying = _controller!.isPlaying;
+      if (isPlaying != _isPlaying) {
+        setState(() => _isPlaying = isPlaying);
+      }
+
+      if (_controller!.hasError && !_hasError) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = _controller!.errorDescription ?? 'Playback error';
+        });
+      }
+      
+      // Save progress periodically
+      if (_isPlaying && _controller!.position.inSeconds % 5 == 0) {
+        _videoState = _videoState.copyWith(progressSeconds: _controller!.position.inSeconds.toDouble());
+        _saveState();
+      }
+
+      // Auto-advance logic
+      if (widget.autoPlayMode && 
+          !_hasNavigated && 
+          _controller!.duration.inMilliseconds > 0 &&
+          _controller!.position.inMilliseconds >= _controller!.duration.inMilliseconds - 300) {
+        _hasNavigated = true;
+        widget.onNavigateDown?.call();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(VideoPlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.autoPlayMode != widget.autoPlayMode) {
+      _controller?.setLooping(!widget.autoPlayMode);
+      if (!widget.autoPlayMode) {
+        _hasNavigated = false;
+      }
+    }
   }
 
   @override
   void dispose() {
+    _controller?.removeListener(_videoListener);
+    _controller?.dispose();
     _likeAnimController.dispose();
     super.dispose();
   }
 
   void _togglePlayPause() {
-    final controller = widget.controller;
-    if (controller == null) return;
+    if (_hasError || _controller == null) return;
     HapticFeedback.lightImpact();
     setState(() {
       _showPlayPauseIcon = true;
+      if (_controller!.isPlaying) {
+        _controller!.pause();
+      } else {
+        _controller!.play();
+      }
     });
-    
-    if (controller.isPlaying) {
-      controller.pause();
-    } else {
-      controller.play();
-    }
 
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) setState(() => _showPlayPauseIcon = false);
     });
   }
 
-  void _onDoubleTapLike() {
-    widget.onToggleLike();
-    if (!widget.videoState.liked) {
-      // It's about to be liked (state hasn't bubbled down yet fully, but we assume it does)
+  void _toggleLike() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _videoState = _videoState.copyWith(liked: !_videoState.liked);
+    });
+    _saveState();
+    
+    if (_videoState.liked) {
       _likeAnimController.forward().then((_) => _likeAnimController.reverse());
     }
   }
@@ -678,8 +659,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (widget.controller == null) _buildLoadingWidget()
-        else if (widget.controller!.hasError) _buildErrorWidget()
+        if (_hasError) _buildErrorWidget()
+        else if (_controller == null) _buildLoadingWidget()
         else _buildVideoPlayer(),
         
         Positioned(
@@ -716,20 +697,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         _buildPlayPauseOverlay(),
         _buildSideActions(),
         _buildVideoInfo(),
-        
-        // Like Animation Overlay
-        Center(
-          child: ScaleTransition(
-            scale: _likeScaleAnim,
-            child: const HugeIcon(icon: HugeIcons.strokeRoundedFavourite, color: Colors.red, size: 120.0),
-          ),
-        ),
       ],
     );
   }
 
   Widget _buildLoadingWidget() {
-    return const Center(child: CircularProgressIndicator(color: Color(0xFFE040FB)));
+    return Center(child: CircularProgressIndicator(color: const Color(0xFFE040FB)));
   }
 
   Widget _buildErrorWidget() {
@@ -755,7 +728,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text(widget.controller!.errorDescription ?? "Unknown error", style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center),
+                      child: Text(_errorMessage, style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center),
                     ),
                   ],
                 ),
@@ -770,10 +743,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
   Widget _buildVideoPlayer() {
     return GestureDetector(
       onTap: _togglePlayPause,
-      onDoubleTap: _onDoubleTapLike,
+      onDoubleTap: _toggleLike,
       child: Center(
         child: AdaptiveVideoPlayerWidget(
-          controller: widget.controller!,
+          controller: _controller!,
           fit: BoxFit.contain,
           pauseUponEnteringBackgroundMode: widget.pauseUponEnteringBackgroundMode,
         ),
@@ -782,10 +755,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
   }
   
   Widget _buildPlayPauseOverlay() {
-    if (!_showPlayPauseIcon || widget.controller == null) return const SizedBox.shrink();
+    if (!_showPlayPauseIcon) return const SizedBox.shrink();
     return Center(
       child: HugeIcon(
-        icon: widget.controller!.isPlaying ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
+        icon: _isPlaying ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
         size: 80.0,
         color: Colors.white.withValues(alpha: 0.7),
       ),
@@ -810,10 +783,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
             IconButton(
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedFavourite, 
-                color: widget.videoState.liked ? Colors.red : (Theme.of(context).iconTheme.color ?? Colors.white), 
+                color: _videoState.liked ? Colors.red : (Theme.of(context).iconTheme.color ?? Colors.white), 
                 size: 36.0,
               ),
-              onPressed: widget.onToggleLike,
+              onPressed: _toggleLike,
             ),
             const SizedBox(height: 16),
             if (widget.onNavigateUp != null)
