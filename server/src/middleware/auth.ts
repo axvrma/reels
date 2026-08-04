@@ -28,7 +28,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query.token && typeof req.query.token === 'string') {
+  } 
+  
+  if (!token && req.query.token && typeof req.query.token === 'string') {
     token = req.query.token;
   }
 

@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmIconImports } from '@spartan-ng/helm/icon';
@@ -21,14 +22,22 @@ import { lucideX } from '@ng-icons/lucide';
         </button>
       </div>
       <div class="flex-1 flex items-center justify-center bg-black min-h-[50vh]">
-        <video [src]="dialogContext.streamUrl" controls autoplay class="w-full h-full max-h-[85vh] object-contain"></video>
+        <video *ngIf="safeStreamUrl" [src]="safeStreamUrl" controls autoplay class="w-full h-full max-h-[85vh] object-contain"></video>
       </div>
     </div>
   `
 })
-export class VideoPlayerDialogComponent {
+export class VideoPlayerDialogComponent implements OnInit {
   private _dialogRef = inject(BrnDialogRef, { optional: true });
   public dialogContext = injectBrnDialogContext<{ title: string; streamUrl: string }>({ optional: true }) || { title: '', streamUrl: '' };
+  private sanitizer = inject(DomSanitizer);
+  public safeStreamUrl: SafeResourceUrl | null = null;
+
+  ngOnInit() {
+    if (this.dialogContext.streamUrl) {
+      this.safeStreamUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.dialogContext.streamUrl);
+    }
+  }
 
   closeDialog() {
     if (this._dialogRef) {
