@@ -218,13 +218,10 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     if (streamUri.scheme != 'file') {
       final token = await AuthRepository().getAccessToken();
       if (token != null) {
-        if (!SettingsRepository().isLocalMode) {
-          headers['Authorization'] = 'Bearer $token';
-        } else {
-          final queryParams = Map<String, dynamic>.from(streamUri.queryParameters);
-          queryParams['token'] = token;
-          streamUri = streamUri.replace(queryParameters: queryParams);
-        }
+        headers['Authorization'] = 'Bearer $token';
+        final queryParams = Map<String, dynamic>.from(streamUri.queryParameters);
+        queryParams['token'] = token;
+        streamUri = streamUri.replace(queryParameters: queryParams);
       }
     }
     
