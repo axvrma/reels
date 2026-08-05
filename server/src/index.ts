@@ -17,7 +17,8 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: true,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length']
 }));
 app.use(express.json());
 app.use(morgan('dev'));

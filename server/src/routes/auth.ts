@@ -26,7 +26,7 @@ const secret = new TextEncoder().encode(
   process.env.AUTH_ACCESS_TOKEN_SECRET || 'fallback-secret-do-not-use-in-prod'
 );
 const pepper = process.env.AUTH_REFRESH_TOKEN_PEPPER || 'fallback-pepper';
-const accessTtlMinutes = parseInt(process.env.AUTH_ACCESS_TOKEN_TTL_MINUTES || '15', 10);
+const accessTtlMinutes = parseInt(process.env.AUTH_ACCESS_TOKEN_TTL_MINUTES || '1440', 10);
 const refreshTtlDays = parseInt(process.env.AUTH_REFRESH_TOKEN_TTL_DAYS || '30', 10);
 const cookieName = process.env.AUTH_COOKIE_NAME || 'reels_refresh';
 const issuer = process.env.AUTH_ISSUER || 'reels-private-media';

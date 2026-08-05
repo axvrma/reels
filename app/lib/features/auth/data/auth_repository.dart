@@ -113,7 +113,11 @@ class AuthRepository {
 
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
-    return token != null;
+    if (token != null) {
+      refresh(); // Background refresh on startup
+      return true;
+    }
+    return false;
   }
 
   Future<String?> refresh() async {

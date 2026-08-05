@@ -247,25 +247,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     final controller = _controllers[index];
     if (controller == null) return;
     
-    // Auto-refresh token if a stream error occurs (token expired)
-    if (controller.hasError && !_isRefreshingToken) {
-      _isRefreshingToken = true;
-      AuthRepository().refresh().then((newToken) {
-        if (!mounted) return;
-        _isRefreshingToken = false;
-        if (newToken != null) {
-          // Re-initialize all active controllers since their tokens likely expired too
-          for (final key in _controllers.keys.toList()) {
-             _initializeController(key).then((_) {
-                if (key == _currentIndex && mounted) {
-                   _manageControllers();
-                }
-             });
-          }
-        }
-      });
-    }
-    
     if (index == _currentIndex) {
       if (controller.position.inSeconds > 0 && controller.position.inSeconds % 5 == 0) {
         setState(() {
