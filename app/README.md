@@ -1,13 +1,15 @@
-# Vibes Mobile & Web App (Flutter)
+# Vibes Application (Flutter)
 
-A modern, high-performance TikTok-style video application built using Flutter. This app features vertical scrolling, likes, interactive notes, and fully seamless auto-play logic with background audio support.
+A modern, high-performance TikTok-style video application built using Flutter. This app features vertical scrolling, likes, interactive notes, and fully seamless auto-play logic with background audio support. 
+
+It is completely cross-platform and natively supports **Mobile (Android/iOS)**, **Web**, and **Desktop (macOS, Windows, Linux)**.
 
 ## Key Architecture Choices
 - **Video Playback**: Powered by the highly performant `media_kit` library.
 - **State & Local Storage**: Managed using `Hive` for blistering fast local caching and offline capabilities.
 - **Routing**: Built using Flutter's native declarative routing architecture.
 
-## Local Development (Mobile / Web)
+## Local Development
 
 ### Running the App
 1. Install dependencies:
@@ -15,11 +17,21 @@ A modern, high-performance TikTok-style video application built using Flutter. T
 flutter pub get
 ```
 
-2. Run on Chrome (or a mobile emulator):
+2. Run on your desired platform:
+
+**Web (Chrome):**
 ```bash
 flutter run -d chrome --dart-define=API_URL=http://localhost:3000/api
 ```
-*(Make sure your backend server is running on port 3000)*
+
+**Desktop:**
+```bash
+flutter run -d macos    # macOS
+flutter run -d windows  # Windows
+flutter run -d linux    # Linux
+```
+*(When running natively, ensure your backend server is accessible and update `API_URL` if needed, defaults to `http://localhost:3000/api`)*
+
 
 ## Production Deployment (Web)
 
