@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/config/settings_repository.dart';
 import 'features/auth/data/auth_repository.dart';
@@ -13,7 +14,9 @@ import 'core/services/audio_handler.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  await initAudioService();
+  if (!kIsWeb) {
+    await initAudioService();
+  }
   await Hive.initFlutter();
   await Hive.openBox('videoData');
   await Hive.openBox('settingsData');

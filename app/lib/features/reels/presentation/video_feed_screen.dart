@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/config/settings_repository.dart';
@@ -58,27 +59,27 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
     
     setupMediaSessionControls(
-      onNext: () {
-        if (_currentIndex < _videos.length - 1 && mounted) {
-          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-        }
-      },
-      onPrev: () {
-        if (_currentIndex > 0 && mounted) {
-          _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-        }
-      },
+      onNext: _handleNext,
+      onPrev: _handlePrev,
     );
 
     try {
-      audioHandler.onSkipToNext = () {
-        if (_currentIndex < _videos.length - 1 && mounted) {
-          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      audioHandler.onSkipToNext = _handleNext;
+      audioHandler.onSkipToPrevious = _handlePrev;
+      audioHandler.onPlayCallback = () {
+        if (mounted && _isManuallyPaused) {
+           setState(() {
+             _isManuallyPaused = false;
+           });
+           _manageControllers();
         }
       };
-      audioHandler.onSkipToPrevious = () {
-        if (_currentIndex > 0 && mounted) {
-          _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      audioHandler.onPauseCallback = () {
+        if (mounted && !_isManuallyPaused) {
+           setState(() {
+             _isManuallyPaused = true;
+           });
+           _manageControllers();
         }
       };
     } catch (_) {}
@@ -188,8 +189,12 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     // Dispose unused
     final keysToRemove = _controllers.keys.where((k) => k < prev || k > next).toList();
     for (int k in keysToRemove) {
-      _controllers[k]?.dispose();
+      final oldController = _controllers[k];
       _controllers.remove(k);
+      oldController?.pause();
+      Future.delayed(const Duration(seconds: 5), () {
+        oldController?.dispose();
+      });
     }
     
     // Play/Pause logic
@@ -199,21 +204,46 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
         if (!isBackground || _autoPlayBackground) {
            if (!_isManuallyPaused) {
              controller.play();
-             try { audioHandler.play(); } catch (_) {}
+             if (_autoPlayBackground && !kIsWeb) {
+               try { audioHandler.play(); } catch (_) {}
+             }
            } else {
              controller.pause();
-             try { audioHandler.pause(); } catch (_) {}
+             if (_autoPlayBackground && !kIsWeb) {
+               try { audioHandler.pause(); } catch (_) {}
+             }
            }
-           try {
-             audioHandler.updateMediaItem(MediaItem(
-               id: _videos[current].id,
-               title: _videos[current].title,
-               artist: 'vibes user',
-             ));
-           } catch (_) {}
+           
+           if (_autoPlayBackground) {
+             if (kIsWeb) {
+               final title = _videos[current].title;
+               updateMediaSessionMetadata(title, 'vibes user');
+               Future.delayed(const Duration(milliseconds: 500), () {
+                 if (mounted && _currentIndex == current && _autoPlayBackground) {
+                   updateMediaSessionMetadata(title, 'vibes user');
+                 }
+               });
+             } else {
+               try {
+                 audioHandler.updateMediaItem(MediaItem(
+                   id: _videos[current].id,
+                   title: _videos[current].title,
+                   artist: 'vibes user',
+                 ));
+               } catch (_) {}
+             }
+           } else {
+             if (kIsWeb) {
+               clearMediaSessionMetadata();
+             } else {
+               try { audioHandler.stop(); } catch (_) {}
+             }
+           }
         } else {
            controller.pause();
-           try { audioHandler.pause(); } catch (_) {}
+           if (_autoPlayBackground && !kIsWeb) {
+             try { audioHandler.pause(); } catch (_) {}
+           }
         }
       } else {
         controller.pause();
@@ -304,25 +334,60 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     }
   }
 
-  void _advanceToNextVideo() {
-    if (_currentIndex < _videos.length - 1) {
+  void _handleNext() {
+    if (_currentIndex < _videos.length - 1 && mounted) {
       final newIndex = _currentIndex + 1;
       final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.hidden || _lifecycleState == AppLifecycleState.detached;
       
       if (isBackground) {
          setState(() {
            _currentIndex = newIndex;
+           _isManuallyPaused = false;
          });
+         _hasNavigatedMap[newIndex] = false;
+         if (_controllers.containsKey(newIndex)) {
+           _controllers[newIndex]?.seekTo(Duration.zero);
+         }
          _manageControllers();
          if (_pageController.hasClients) {
             _pageController.jumpToPage(newIndex);
          }
       } else {
          if (_pageController.hasClients) {
-            _pageController.animateToPage(newIndex, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+            _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
          }
       }
     }
+  }
+
+  void _handlePrev() {
+    if (_currentIndex > 0 && mounted) {
+      final newIndex = _currentIndex - 1;
+      final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.hidden || _lifecycleState == AppLifecycleState.detached;
+      
+      if (isBackground) {
+         setState(() {
+           _currentIndex = newIndex;
+           _isManuallyPaused = false;
+         });
+         _hasNavigatedMap[newIndex] = false;
+         if (_controllers.containsKey(newIndex)) {
+           _controllers[newIndex]?.seekTo(Duration.zero);
+         }
+         _manageControllers();
+         if (_pageController.hasClients) {
+            _pageController.jumpToPage(newIndex);
+         }
+      } else {
+         if (_pageController.hasClients) {
+            _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+         }
+      }
+    }
+  }
+
+  void _advanceToNextVideo() {
+    _handleNext();
   }
 
   void _saveState(int index) {
@@ -473,13 +538,15 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           onToggleLike: () => _toggleLike(index),
           onManualPlayPause: (isPaused) {
             _isManuallyPaused = isPaused;
-            try {
-              if (isPaused) {
-                audioHandler.pause();
-              } else {
-                audioHandler.play();
-              }
-            } catch (_) {}
+            if (_autoPlayBackground && !kIsWeb) {
+              try {
+                if (isPaused) {
+                  audioHandler.pause();
+                } else {
+                  audioHandler.play();
+                }
+              } catch (_) {}
+            }
           },
           onNavigateUp: index > 0 
               ? () {
@@ -560,6 +627,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                               for (var controller in _controllers.values) {
                                 controller.setLooping(!_autoPlayBackground);
                               }
+                              _manageControllers();
                             });
                           },
                         ),
@@ -710,10 +778,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         else if (widget.controller!.hasError) _buildErrorWidget()
         else _buildVideoPlayer(),
         
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
+        Positioned.fill(
           child: _BufferingIndicator(controller: widget.controller),
         ),
         
@@ -994,10 +1059,16 @@ class _BufferingIndicatorState extends State<_BufferingIndicator> {
   @override
   Widget build(BuildContext context) {
     if (!_isBuffering) return const SizedBox.shrink();
-    return const LinearProgressIndicator(
-      color: Color(0xFFE040FB),
-      backgroundColor: Colors.transparent,
-      minHeight: 3,
+    return Center(
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.3,
+        child: const LinearProgressIndicator(
+          color: Color(0xFFE040FB),
+          backgroundColor: Colors.white24,
+          minHeight: 4,
+          borderRadius: BorderRadius.all(Radius.circular(2)),
+        ),
+      ),
     );
   }
 }

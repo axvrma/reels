@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 class ReelsAudioHandler extends BaseAudioHandler {
   VoidCallback? onSkipToNext;
   VoidCallback? onSkipToPrevious;
+  VoidCallback? onPlayCallback;
+  VoidCallback? onPauseCallback;
 
   ReelsAudioHandler() {
     // Initial state
@@ -38,9 +40,11 @@ class ReelsAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> play() async {
+    onPlayCallback?.call();
     // We let the app handle actual playback; this just updates the notification UI.
     playbackState.add(playbackState.value.copyWith(
       playing: true,
+      processingState: AudioProcessingState.ready,
       controls: [
         MediaControl.skipToPrevious,
         MediaControl.pause,
@@ -52,8 +56,10 @@ class ReelsAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> pause() async {
+    onPauseCallback?.call();
     playbackState.add(playbackState.value.copyWith(
       playing: false,
+      processingState: AudioProcessingState.ready,
       controls: [
         MediaControl.skipToPrevious,
         MediaControl.play,
@@ -61,6 +67,15 @@ class ReelsAudioHandler extends BaseAudioHandler {
       ],
     ));
     return super.pause();
+  }
+
+  @override
+  Future<void> stop() async {
+    playbackState.add(playbackState.value.copyWith(
+      playing: false,
+      processingState: AudioProcessingState.idle,
+    ));
+    return super.stop();
   }
 
   @override

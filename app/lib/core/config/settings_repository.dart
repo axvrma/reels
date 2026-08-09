@@ -1,5 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'app_config.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SettingsRepository {
   static const String boxName = 'settingsData';
@@ -27,7 +29,21 @@ class SettingsRepository {
     await _box.put(keyHasSelectedMode, value);
   }
 
-  String get serverUrl => _box.get(keyServerUrl, defaultValue: AppConfig.apiUrl);
+  String get serverUrl {
+    String url = _box.get(keyServerUrl, defaultValue: AppConfig.apiUrl);
+    if (!kIsWeb) {
+      try {
+        if (Platform.isAndroid) {
+          if (url.contains('localhost')) {
+            url = url.replaceAll('localhost', '10.0.2.2');
+          } else if (url.contains('127.0.0.1')) {
+            url = url.replaceAll('127.0.0.1', '10.0.2.2');
+          }
+        }
+      } catch (_) {}
+    }
+    return url;
+  }
   
   Future<void> setServerUrl(String url) async {
     await _box.put(keyServerUrl, url);
