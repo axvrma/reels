@@ -14,6 +14,9 @@ import 'settings_screen.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/login_screen.dart';
 import 'player/adaptive_video_player.dart';
+import 'media_session.dart';
+import 'package:audio_service/audio_service.dart';
+import '../../../core/services/audio_handler.dart';
 
 class VideoFeedScreen extends StatefulWidget {
   const VideoFeedScreen({super.key});
@@ -54,6 +57,32 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     WakelockPlus.enable();
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
     
+    setupMediaSessionControls(
+      onNext: () {
+        if (_currentIndex < _videos.length - 1 && mounted) {
+          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        }
+      },
+      onPrev: () {
+        if (_currentIndex > 0 && mounted) {
+          _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        }
+      },
+    );
+
+    try {
+      audioHandler.onSkipToNext = () {
+        if (_currentIndex < _videos.length - 1 && mounted) {
+          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        }
+      };
+      audioHandler.onSkipToPrevious = () {
+        if (_currentIndex > 0 && mounted) {
+          _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        }
+      };
+    } catch (_) {}
+
     if (SettingsRepository().isLocalMode) {
       _repository = LocalVideoRepository();
     }
@@ -170,11 +199,21 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
         if (!isBackground || _autoPlayBackground) {
            if (!_isManuallyPaused) {
              controller.play();
+             try { audioHandler.play(); } catch (_) {}
            } else {
              controller.pause();
+             try { audioHandler.pause(); } catch (_) {}
            }
+           try {
+             audioHandler.updateMediaItem(MediaItem(
+               id: _videos[current].id,
+               title: _videos[current].title,
+               artist: 'vibes user',
+             ));
+           } catch (_) {}
         } else {
            controller.pause();
+           try { audioHandler.pause(); } catch (_) {}
         }
       } else {
         controller.pause();
@@ -434,6 +473,13 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           onToggleLike: () => _toggleLike(index),
           onManualPlayPause: (isPaused) {
             _isManuallyPaused = isPaused;
+            try {
+              if (isPaused) {
+                audioHandler.pause();
+              } else {
+                audioHandler.play();
+              }
+            } catch (_) {}
           },
           onNavigateUp: index > 0 
               ? () {

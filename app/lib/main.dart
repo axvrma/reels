@@ -8,10 +8,12 @@ import 'features/auth/presentation/welcome_screen.dart';
 import 'features/auth/presentation/mode_selection_screen.dart';
 import 'features/reels/presentation/video_feed_screen.dart';
 import 'package:media_kit/media_kit.dart';
+import 'core/services/audio_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  await initAudioService();
   await Hive.initFlutter();
   await Hive.openBox('videoData');
   await Hive.openBox('settingsData');
