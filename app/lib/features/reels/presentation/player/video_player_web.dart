@@ -17,6 +17,7 @@ class WebVideoController implements AdaptiveVideoController {
   
   bool _isPlaying = false;
   bool _hasError = false;
+  bool _isBuffering = false;
   String? _errorDescription;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -40,8 +41,19 @@ class WebVideoController implements AdaptiveVideoController {
     });
 
     _player.stream.error.listen((error) {
+      final errorStr = error.toString();
+      if (errorStr.contains('The play() request was interrupted') ||
+          errorStr.contains('interact with the document first') ||
+          errorStr.contains('NotAllowedError')) {
+        return;
+      }
       _hasError = true;
-      _errorDescription = error;
+      _errorDescription = errorStr;
+      _notifyListeners();
+    });
+
+    _player.stream.buffering.listen((buffering) {
+      _isBuffering = buffering;
       _notifyListeners();
     });
   }
@@ -55,6 +67,9 @@ class WebVideoController implements AdaptiveVideoController {
   bool get hasError => _hasError;
 
   @override
+  bool get isBuffering => _isBuffering;
+
+  @override
   String? get errorDescription => _errorDescription;
 
   @override
@@ -63,20 +78,25 @@ class WebVideoController implements AdaptiveVideoController {
   @override
   Duration get duration => _duration;
 
+  Future<void>? _initFuture;
+
   @override
   Future<void> initialize(Uri url, {Object? file, Map<String, String>? headers}) async {
     _videoController = VideoController(_player);
     // Web does not support local files using dart:io File
-    await _player.open(Media(url.toString(), httpHeaders: headers), play: false);
+    _initFuture = _player.open(Media(url.toString(), httpHeaders: headers), play: false);
+    await _initFuture;
   }
 
   @override
   Future<void> play() async {
+    if (_initFuture != null) await _initFuture;
     await _player.play();
   }
 
   @override
   Future<void> pause() async {
+    if (_initFuture != null) await _initFuture;
     await _player.pause();
   }
 
@@ -88,6 +108,11 @@ class WebVideoController implements AdaptiveVideoController {
   @override
   Future<void> setLooping(bool looping) async {
     await _player.setPlaylistMode(looping ? PlaylistMode.single : PlaylistMode.none);
+  }
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {
+    await _player.setRate(rate);
   }
 
   @override

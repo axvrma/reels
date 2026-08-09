@@ -4,6 +4,7 @@ import 'video_player_mobile.dart' if (dart.library.js_interop) 'video_player_web
 abstract class AdaptiveVideoController {
   bool get isPlaying;
   bool get hasError;
+  bool get isBuffering;
   String? get errorDescription;
   Duration get position;
   Duration get duration;
@@ -13,6 +14,7 @@ abstract class AdaptiveVideoController {
   Future<void> pause();
   Future<void> seekTo(Duration position);
   Future<void> setLooping(bool looping);
+  Future<void> setPlaybackRate(double rate);
   void dispose();
   void addListener(VoidCallback listener);
   void removeListener(VoidCallback listener);

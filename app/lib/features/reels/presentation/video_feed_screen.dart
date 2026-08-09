@@ -2,8 +2,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/config/settings_repository.dart';
@@ -47,6 +45,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   final Map<int, bool> _hasNavigatedMap = {};
   
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+  bool _isManuallyPaused = false;
 
   @override
   void initState() {
@@ -125,6 +124,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     _hasNavigatedMap.clear();
     
     _currentIndex = 0;
+    _isManuallyPaused = false;
     if (_pageController.hasClients) {
       _pageController.jumpToPage(0);
     }
@@ -134,7 +134,10 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
   void _onPageChanged(int index) {
     setState(() {
       _currentIndex = index;
+      _isManuallyPaused = false;
     });
+    _hasNavigatedMap[index] = false;
+    _controllers[index]?.seekTo(Duration.zero);
     _manageControllers();
   }
 
@@ -163,9 +166,13 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     // Play/Pause logic
     _controllers.forEach((index, controller) {
       if (index == current) {
-        final isBackground = _lifecycleState == AppLifecycleState.paused || _lifecycleState == AppLifecycleState.detached || _lifecycleState == AppLifecycleState.hidden;
+        final isBackground = _lifecycleState != AppLifecycleState.resumed;
         if (!isBackground || _autoPlayBackground) {
-           controller.play();
+           if (!_isManuallyPaused) {
+             controller.play();
+           } else {
+             controller.pause();
+           }
         } else {
            controller.pause();
         }
@@ -235,10 +242,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     await controller.initialize(streamUri, file: cachedFile, headers: headers);
     controller.setLooping(!_autoPlayBackground);
     
-    if (vState.progressSeconds > 0) {
-      controller.seekTo(Duration(seconds: vState.progressSeconds.toInt()));
-    }
-    
     if (mounted) setState(() {});
   }
 
@@ -248,13 +251,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
     if (controller == null) return;
     
     if (index == _currentIndex) {
-      if (controller.position.inSeconds > 0 && controller.position.inSeconds % 5 == 0) {
-        setState(() {
-          _videoStates[index] = _videoStates[index]!.copyWith(progressSeconds: controller.position.inSeconds.toDouble());
-        });
-        _saveState(index);
-      }
-      
       // Auto-advance logic
       if (_autoPlayBackground && 
           !(_hasNavigatedMap[index] ?? false) &&
@@ -342,7 +338,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
               ),
             ),
             ListTile(
-              leading: const HugeIcon(icon: HugeIcons.strokeRoundedSettings01, color: Colors.black54, size: 24.0),
+              leading: const Icon(Icons.settings, color: Colors.black54, size: 24.0),
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
@@ -350,7 +346,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
               },
             ),
             ListTile(
-              leading: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: Colors.redAccent, size: 24.0),
+              leading: const Icon(Icons.logout, color: Colors.redAccent, size: 24.0),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
               onTap: () async {
                 Navigator.pop(context);
@@ -388,7 +384,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: Colors.red, size: 64.0),
+              const Icon(Icons.error, color: Colors.red, size: 64.0),
               const SizedBox(height: 16),
               const Text('An error occurred while loading the feed.', style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -436,6 +432,9 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
           videoState: state,
           autoPlayMode: _autoPlayBackground,
           onToggleLike: () => _toggleLike(index),
+          onManualPlayPause: (isPaused) {
+            _isManuallyPaused = isPaused;
+          },
           onNavigateUp: index > 0 
               ? () {
                   if (_pageController.hasClients) {
@@ -483,7 +482,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                     Row(
                       children: [
                         IconButton(
-                          icon: HugeIcon(icon: HugeIcons.strokeRoundedMenu01, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+                          icon: Icon(Icons.menu, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
                           onPressed: () {
                             _scaffoldKey.currentState?.openDrawer();
                           },
@@ -505,7 +504,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                       children: [
                         IconButton(
                           icon: Icon(
-                            LucideIcons.playCircle, 
+                            Icons.play_circle, 
                             color: _autoPlayBackground ? const Color(0xFFE040FB) : (Theme.of(context).iconTheme.color ?? Colors.white), 
                             size: 24.0,
                           ),
@@ -519,7 +518,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> with TickerProviderSt
                           },
                         ),
                         IconButton(
-                          icon: HugeIcon(icon: HugeIcons.strokeRoundedRefresh, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
+                          icon: Icon(Icons.refresh, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 24.0),
                           onPressed: _loadVideos,
                         ),
                       ],
@@ -582,6 +581,7 @@ class VideoPlayerScreen extends StatefulWidget {
   final VoidCallback onToggleLike;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateDown;
+  final void Function(bool)? onManualPlayPause;
   final bool autoPlayMode;
   final bool pauseUponEnteringBackgroundMode;
 
@@ -591,6 +591,7 @@ class VideoPlayerScreen extends StatefulWidget {
     required this.controller,
     required this.videoState,
     required this.onToggleLike,
+    this.onManualPlayPause,
     this.autoPlayMode = false,
     this.pauseUponEnteringBackgroundMode = true,
     this.onNavigateUp,
@@ -603,6 +604,7 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTickerProviderStateMixin {
   bool _showPlayPauseIcon = false;
+  bool _isFastForwarding = false;
   late AnimationController _likeAnimController;
   late Animation<double> _likeScaleAnim;
 
@@ -631,8 +633,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     
     if (controller.isPlaying) {
       controller.pause();
+      widget.onManualPlayPause?.call(true);
     } else {
       controller.play();
+      widget.onManualPlayPause?.call(false);
     }
 
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -659,6 +663,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         if (widget.controller == null) _buildLoadingWidget()
         else if (widget.controller!.hasError) _buildErrorWidget()
         else _buildVideoPlayer(),
+        
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _BufferingIndicator(controller: widget.controller),
+        ),
         
         Positioned(
           top: 0,
@@ -699,9 +710,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         Center(
           child: ScaleTransition(
             scale: _likeScaleAnim,
-            child: const HugeIcon(icon: HugeIcons.strokeRoundedFavourite, color: Colors.red, size: 120.0),
+            child: const Icon(Icons.favorite, color: Colors.red, size: 120.0),
           ),
         ),
+        
+        // Fast Forward Overlay
+        if (_isFastForwarding)
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('2x', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 8),
+                  Icon(Icons.fast_forward, color: Colors.white, size: 28),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -718,7 +749,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: Colors.red, size: 48.0),
+            const Icon(Icons.error, color: Colors.red, size: 48.0),
             const SizedBox(height: 16),
             const Text('Could not play this video.', style: TextStyle(color: Colors.white, fontSize: 16), textAlign: TextAlign.center),
             const SizedBox(height: 16),
@@ -745,10 +776,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
     );
   }
 
+  void _setPlaybackRate(double rate) {
+    final controller = widget.controller;
+    if (controller == null) return;
+    controller.setPlaybackRate(rate);
+    setState(() {
+      _isFastForwarding = rate > 1.0;
+    });
+  }
+
   Widget _buildVideoPlayer() {
     return GestureDetector(
       onTap: _togglePlayPause,
       onDoubleTap: _onDoubleTapLike,
+      onLongPressStart: (_) => _setPlaybackRate(2.0),
+      onLongPressEnd: (_) => _setPlaybackRate(1.0),
+      onLongPressCancel: () => _setPlaybackRate(1.0),
       child: Center(
         child: AdaptiveVideoPlayerWidget(
           controller: widget.controller!,
@@ -762,10 +805,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
   Widget _buildPlayPauseOverlay() {
     if (!_showPlayPauseIcon || widget.controller == null) return const SizedBox.shrink();
     return Center(
-      child: HugeIcon(
-        icon: widget.controller!.isPlaying ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
-        size: 80.0,
-        color: Colors.white.withValues(alpha: 0.7),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Icon(
+          widget.controller!.isPlaying ? Icons.pause : Icons.play_arrow,
+          color: Colors.white,
+          size: 40.0,
+        ),
       ),
     );
   }
@@ -786,8 +836,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
         child: Column(
           children: [
             IconButton(
-              icon: HugeIcon(
-                icon: HugeIcons.strokeRoundedFavourite, 
+              icon: Icon(
+                Icons.favorite, 
                 color: widget.videoState.liked ? Colors.red : (Theme.of(context).iconTheme.color ?? Colors.white), 
                 size: 36.0,
               ),
@@ -796,12 +846,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
             const SizedBox(height: 16),
             if (widget.onNavigateUp != null)
               IconButton(
-                icon: Icon(LucideIcons.arrowUp, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
+                icon: Icon(Icons.keyboard_arrow_up, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
                 onPressed: widget.onNavigateUp,
               ),
             if (widget.onNavigateDown != null)
               IconButton(
-                icon: Icon(LucideIcons.arrowDown, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
+                icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).iconTheme.color ?? Colors.white, size: 36.0),
                 onPressed: widget.onNavigateDown,
               ),
           ],
@@ -850,6 +900,58 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with SingleTicker
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BufferingIndicator extends StatefulWidget {
+  final AdaptiveVideoController? controller;
+  const _BufferingIndicator({this.controller});
+
+  @override
+  State<_BufferingIndicator> createState() => _BufferingIndicatorState();
+}
+
+class _BufferingIndicatorState extends State<_BufferingIndicator> {
+  bool _isBuffering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isBuffering = widget.controller?.isBuffering ?? false;
+    widget.controller?.addListener(_onControllerUpdate);
+  }
+
+  @override
+  void didUpdateWidget(_BufferingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_onControllerUpdate);
+      _isBuffering = widget.controller?.isBuffering ?? false;
+      widget.controller?.addListener(_onControllerUpdate);
+    }
+  }
+
+  void _onControllerUpdate() {
+    final buffering = widget.controller?.isBuffering ?? false;
+    if (buffering != _isBuffering) {
+      if (mounted) setState(() => _isBuffering = buffering);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_onControllerUpdate);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isBuffering) return const SizedBox.shrink();
+    return const LinearProgressIndicator(
+      color: Color(0xFFE040FB),
+      backgroundColor: Colors.transparent,
+      minHeight: 3,
     );
   }
 }

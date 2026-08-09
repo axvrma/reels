@@ -18,6 +18,7 @@ class MobileVideoController implements AdaptiveVideoController {
   
   bool _isPlaying = false;
   bool _hasError = false;
+  bool _isBuffering = false;
   String? _errorDescription;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -45,6 +46,11 @@ class MobileVideoController implements AdaptiveVideoController {
       _errorDescription = error;
       _notifyListeners();
     });
+
+    _player.stream.buffering.listen((buffering) {
+      _isBuffering = buffering;
+      _notifyListeners();
+    });
   }
 
   VideoController? get videoController => _videoController;
@@ -56,6 +62,9 @@ class MobileVideoController implements AdaptiveVideoController {
   bool get hasError => _hasError;
 
   @override
+  bool get isBuffering => _isBuffering;
+
+  @override
   String? get errorDescription => _errorDescription;
 
   @override
@@ -64,6 +73,8 @@ class MobileVideoController implements AdaptiveVideoController {
   @override
   Duration get duration => _duration;
 
+  Future<void>? _initFuture;
+
   @override
   Future<void> initialize(Uri url, {Object? file, Map<String, String>? headers}) async {
     _hasError = false;
@@ -71,19 +82,22 @@ class MobileVideoController implements AdaptiveVideoController {
     _notifyListeners();
     _videoController ??= VideoController(_player);
     if (file != null && file is File) {
-      await _player.open(Media(file.path), play: false);
+      _initFuture = _player.open(Media(file.path), play: false);
     } else {
-      await _player.open(Media(url.toString(), httpHeaders: headers), play: false);
+      _initFuture = _player.open(Media(url.toString(), httpHeaders: headers), play: false);
     }
+    await _initFuture;
   }
 
   @override
   Future<void> play() async {
+    if (_initFuture != null) await _initFuture;
     await _player.play();
   }
 
   @override
   Future<void> pause() async {
+    if (_initFuture != null) await _initFuture;
     await _player.pause();
   }
 
@@ -95,6 +109,11 @@ class MobileVideoController implements AdaptiveVideoController {
   @override
   Future<void> setLooping(bool looping) async {
     await _player.setPlaylistMode(looping ? PlaylistMode.single : PlaylistMode.none);
+  }
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {
+    await _player.setRate(rate);
   }
 
   @override
