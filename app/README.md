@@ -24,14 +24,19 @@ flutter pub get
 flutter run -d chrome --dart-define=API_URL=http://localhost:3000/api
 ```
 
+**Mobile:**
+```bash
+flutter run -d ios      # iOS Simulator / Device
+flutter run -d android  # Android Emulator / Device
+```
+
 **Desktop:**
 ```bash
 flutter run -d macos    # macOS
 flutter run -d windows  # Windows
 flutter run -d linux    # Linux
 ```
-*(When running natively, ensure your backend server is accessible and update `API_URL` if needed, defaults to `http://localhost:3000/api`)*
-
+*(When running natively on Mobile/Desktop, ensure your backend server is accessible and update `API_URL` if needed, defaults to `http://localhost:3000/api`)*
 
 ## Production Deployment (Web)
 
